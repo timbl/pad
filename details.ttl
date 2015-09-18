@@ -1,0 +1,15 @@
+
+@prefix dc: <http://purl.org/dc/elements/1.1/>.
+
+<#this>   dc:author <https://www.w3.org/People/Berners-Lee/card#i> .
+
+@prefix wf: <http://www.w3.org/2005/01/wf/flow#>.
+
+# This is not a running instance of this app, only a template.
+# It may be in a read-only space like gh-pages. 
+# The app will prompt for where it should make a working read-write copy of itself.
+# This is where the configuration of the app will be when this template has been copied into a read-write space.
+
+<details.ttl#pad> a wf:TemplateInstance;
+ dc:author <https://www.w3.org/People/Berners-Lee/card#i> .
+ 
