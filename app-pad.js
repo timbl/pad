@@ -47,9 +47,6 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Utility functions
     
-    var say = function(message) {
-    };
-    
     var complainIfBad = function(ok, message) {
         if (!ok) {
             div.appendChild(tabulator.panes.utils.errorMessageBlock(dom, message, 'pink'));
@@ -87,7 +84,41 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     };
+    ////////////////////////////   Subscription
     
+    
+    //  for all Link: uuu; rel=rrr  --->  { rrr: uuu }
+    var linkRels = function(doc) {
+        var links = {}; // map relationship to uri
+        var linkHeaders = tabulator.fetcher.getHeader(doc, 'link');
+        if (!linkHeaders) return null;
+        linkHeaders.map(function(headerValue){
+            var arg = headerValue.trim().split(';');
+            var uri = arg[0];
+            arg.slice(1).map(function(a){
+                var key = a.split('=')[0].trim();
+                var val = a.split('=')[1].trim();
+                if (key ==='rel') {
+                    links[val] = uri.trim();
+                }
+            });        
+        });
+        return links;
+    };
+
+
+    var getChangesURI = function(doc, rel) {
+        var links = linkRels(doc);
+        if (!links[rel]) {
+            console.log("No link header rel=" + rel + " on " + doc.uri)
+            return null;
+        }
+        var changesURI = $rdf.uri.join(links[rel], doc.uri);
+        // console.log("Found rel=" + rel + " URI: " + changesURI);
+        return changesURI;
+    };
+
+
     
     //////////////////////// Accesss control
 
@@ -237,8 +268,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     if (ok) {
                         agenda.shift()();
                     } else {
-                        complainIfBad(ok, "FAILED to save new scheduler at: "+ there.uri +' : ' + message);
-                        console.log("FAILED to save new scheduler at: "+ there.uri +' : ' + message);
+                        complainIfBad(ok, "FAILED to save new notepad at: "+ there.uri +' : ' + message);
+                        console.log("FAILED to save new notepad at: "+ there.uri +' : ' + message);
                     };
                 }
             );
@@ -300,13 +331,49 @@ document.addEventListener('DOMContentLoaded', function() {
             var p = div.appendChild(dom.createElement('p'));
             p.setAttribute('style', 'font-size: 140%;') 
             p.innerHTML = 
-                "Your <a href='" + newIndexDoc.uri + "'><b>new scheduler</b></a> is ready to be set up. "+
+                "Your <a href='" + newIndexDoc.uri + "'><b>new notepad</b></a> is ready to be set up. "+
                 "<br/><br/><a href='" + newIndexDoc.uri + "'>Say when you what days work for you.</a>";
             });
         
         agenda.shift()();        
         // Created new data files.
     }
+
+    ///////////////  Update on incoming changes
+    
+
+
+
+    // Reload resorce then
+    
+    var reloadDocument = function(doc, callBack) {
+        tabulator.fetcher.unload(doc);
+        tabulator.fetcher.nowOrWhenFetched(doc.uri, undefined, function(ok, body){
+            if (!ok) {
+                console.log("Cant refresh data:" + body);
+            } else {
+                callBack();
+            };
+        });
+    };
+
+
+
+    // Refresh the DOM tree
+  
+    var refreshTree = function(root) {
+        if (root.refresh) {
+            root.refresh();
+            return;
+        }
+        for (var i=0; i < root.children.length; i++) {
+            refreshTree(root.children[i]);
+        }
+    }
+
+
+
+
 
 
     ////////////////////////////////////////////////
@@ -331,17 +398,53 @@ document.addEventListener('DOMContentLoaded', function() {
         main.setAttribute('style', 'whitespace: pre-wrap; font-family: monospace; width:60em; min-width:50em; ')
 
 
+        var removePart = function(part) {
+            var chunk = part.subject;
+            var prev = kb.any(undefined, PAD('next'), chunk);
+            var next = kb.any(chunk, PAD('next'));
+            if (prev.sameTerm(subject) && next.sameTerm(subject)) { // Last one
+                console.log("You can't delete the last line.")
+                return;
+            }
+            var del = kb.statementsMatching(chunk, undefined, undefined, padDoc)
+                    .concat(kb.statementsMatching(undefined, undefined, chunk, padDoc));
+            var ins = [ $rdf.st(prev, PAD('next'), next, padDoc) ];
+
+           tabulator.sparql.update(del, ins, function(uri,success,error_body){
+                if (!success) {
+                    //alert("Fail to removePart " + error_body);
+                    console.log("removePart FAILED '" + part.value + "' " + error_body);
+                    part.setAttribute('style', baseStyle + 'color: black;  background-color: #fdd;'); // failed
+                    // @@ re-sync entire file ONLY if was clash with someone else
+                    // delete triples and 
+                    // reload triples
+                    // refresh DOM
+                } else {
+                    var row = part.parentNode;
+                    var before = row.previousSibling;
+                    row.parentNode.removeChild(row);
+                    console.log("delete row ok " + part.value);
+                    if (before && before.firstChild) {
+                        before.firstChild.focus();
+                    }
+                }
+            });
+        }
+        
         var addListeners = function(part, chunk) {
 
-
             part.addEventListener('keydown', function(event){
-                //var chunk = event.target.subject;
                 var author = kb.any(chunk, ns.dc('author')); 
-                if (event.keyCode === 13) {
+                if (event.keyCode === 13) { // Return
                     console.log("enter");
                     newChunk(document.activeElement);
+                } else if (event.keyCode === 8) { // Delete
+                    if (part.value.length === 0 ) {
+                        console.log("Deleting line")
+                        removePart(part);
+                    }
                 }
-                console.log(event.key)
+                // console.log(event.keyCode)
             });
 
             part.addEventListener('click', function(event){
@@ -402,7 +505,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 
                 tabulator.sparql.update(del, ins, function(uri,success,error_body){
                     if (!success) {
-                        alert("clash " + error_body);
+                        // alert("clash " + error_body);
                         console.log("patch FAILED '" + part.value + "' " + error_body);
                         part.setAttribute('style', baseStyle + 'color: black;  background-color: #fdd;'); // failed
                         // @@ re-sync entire file ONLY if was clash with someone else
@@ -412,7 +515,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     } else {
                         part.setAttribute('style', baseStyle + 'color: black;'); // synced
                         console.log("patch ok " + part.value);
-                        // getResults();
                     }
                 });
             }); // listener
@@ -548,6 +650,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         };
         
+        table.refresh = sync; // Catch downward propagating refresh events
         
         if (exists) {
             console.log("Existing pad.");
@@ -623,10 +726,22 @@ document.addEventListener('DOMContentLoaded', function() {
     var showResults = function(exists) {
         console.log("showResults()");
         
-        var padEle = (tabulator.panes.utils.notepad(dom, subject, { exists: exists }, function(){
-        
-        }));
+        var padEle = (tabulator.panes.utils.notepad(dom, subject, { exists: exists };
         naviMain.appendChild(padEle);
+        
+        var sockURI = getChangesURI(padDoc, 'websocket');
+        var wssURI;
+        if (sockURI) {
+            wssURI = sockURI.replace(/^http:/, 'ws:').replace(/^https:/, 'wss:');
+            console.log("Web socket URI " + wssURI)
+        }
+        
+        var subopts = { 'websockets': true };
+        $rdf.subscription(subopts, padDoc, function() {
+            reloadDocument(padDoc, function() {
+                refreshTree(structure);
+            });
+        });
     };
     
     var showSignon = function showSignon() {
@@ -822,7 +937,8 @@ document.addEventListener('DOMContentLoaded', function() {
         // console.log("(Your webid is "+ tabulator.preferences.get('me')+")");
     };
 
-
+    //  Build the DOM
+    
     var structure = div.appendChild(dom.createElement('table')); // @@ make responsive style
     structure.setAttribute('style', 'background-color: white; min-width: 40em; min-height: 13em;');
     
@@ -832,13 +948,6 @@ document.addEventListener('DOMContentLoaded', function() {
     var naviLoginout3 = naviLoginoutTR.appendChild(dom.createElement('td'));
     
     var logInOutButton = null;
-    /*
-    var logInOutButton = tabulator.panes.utils.loginStatusBox(dom, setUser);
-    // floating divs lead to a mess
-    // logInOutButton.setAttribute('style', 'float: right'); // float the beginning of the end
-    naviLoginout3.appendChild(logInOutButton);
-    logInOutButton.setAttribute('style', 'margin-right: 0em;')
-    */
 
     var naviTop = structure.appendChild(dom.createElement('tr'));
     var naviMain = naviTop.appendChild(dom.createElement('td'));
