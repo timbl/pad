@@ -29,7 +29,7 @@ document.addEventListener('DOMContentLoaded', function() {
     
     var uri = window.location.href;
     var base = uri.slice(0, uri.lastIndexOf('/')+1);
-    var subject_uri = base  + 'details.ttl#event1';
+    var subject_uri = base  + 'details.ttl#thisPad';
     
     var forms_uri = window.document.title = base+ 'forms.ttl';
 //    var forms_uri = 'https://linkeddata.github.io/app-schedule/forms.ttl'; // CORS blocks
@@ -161,11 +161,6 @@ document.addEventListener('DOMContentLoaded', function() {
             showAppropriateDisplay();
         }
     }
-    
-    var me_uri = tabulator.preferences.get('me');
-    var me = me_uri? kb.sym(me_uri) : null;
-    tabulator.panes.utils.checkUser(detailsDoc, setUser);
-        
 
     ////////////////////////////////  Reproduction: spawn a new instance
     //
@@ -314,26 +309,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
 
-    ////////// Who am I
-
-    if (!tabulator.preferences.get('me')) {
-        console.log("(You do not have your Web Id set. Sign in or sign up to make changes.)");
-
-        if (tabulator.mode == 'webapp' && typeof document !== 'undefined' &&
-            document.location &&  ('' + document.location).slice(0,16) === 'http://localhost') {
-         
-            me = kb.any(subject, tabulator.ns.dc('author')); // when testing on plane with no webid
-            console.log("Assuming user is " + me)   
-        }
-
-    } else {
-        me = kb.sym(tabulator.preferences.get('me'))
-        // console.log("(Your webid is "+ tabulator.preferences.get('me')+")");
-    };
-
-
-
-    ////////////////////////
+    ////////////////////////////////////////////////
     
     //   The pad widget
     
@@ -341,73 +317,19 @@ document.addEventListener('DOMContentLoaded', function() {
     
     
     tabulator.panes.utils.notepad  = function (dom, subject, options) {
+        options = options || {}
+        var exists = options.exists;
         var table = dom.createElement('table');
         var kb = tabulator.kb;
         var mainRow = table.appendChild(dom.createElement('tr'));
         
         var currentNode, currentOffset;
+        var baseStyle = 'font-size: 120%; font-family: monospace; min-width: 50em;'
         
         var main = mainRow.appendChild(dom.createElement('div'));
         
         main.setAttribute('style', 'whitespace: pre-wrap; font-family: monospace; width:60em; min-width:50em; ')
 
-        var newChunk = function(ele, callback) {
-            var kb = tabulator.kb;
-            var tr1 = ele.parentNode;
-            var table = tr1.parentNode;
-            var tr = dom.createElement('tr');
-            if (tr1.nextSibling) {
-                table.insertBefore(tr, tr1.nextSibling);
-            } else {
-                table.appendChild(tr);
-            }
-            var part = tr.appendChild(dom.createElement('input'));
-            part.setAttribute('type', 'text')
-            part.textContent = 'rock on....';
-            
-            var here = ele.subject;
-            var chunk = tabulator.panes.utils.newThing(padDoc);
-            insertables.push($rdf.st(chunk, ns.dc('author'), me, padDoc));
-            insertables.push($rdf.st(chunk, ns.sioc('content'), '', padDoc));
-
-            part.subject = chunk;
-            addListeners(part, chunk);
-
-            var next = kb.any(here, PAD('next'))
-            del = [ $rdf.st(here, PAD('next'), next, padDoc)];
-            ins = [ $rdf.st(here, PAD('next'), chunk, padDoc),
-                    $rdf.st(chunk, PAD('next'), next, padDoc),
-                    $rdf.st(chunk, ns.dc('author'), me, padDoc),
-                    $rdf.st(chunk, ns.sioc('content'), '', padDoc)];
-
-            tabulator.sparql.update(del, ins, function(uri,success,error_body){
-                if (!success) {
-                    callback(false, error_body);
-                    alert("ooops " + error_body)
-                } else {
-                    console.log("New chunk created");
-                    callback(true);
-                    // getResults();
-                }
-            });
-        }
-
-        var insertables = [];
-        var chunk = tabulator.panes.utils.newThing(padDoc);
-        insertables.push($rdf.st(chunk, ns.dc('author'), me, padDoc));
-        insertables.push($rdf.st(chunk, ns.sioc('content'), '', padDoc));
-
-        insertables.push($rdf.st(subject, PAD('next'), chunk, padDoc));
-        insertables.push($rdf.st(chunk, PAD('next'), subject, padDoc));
-        
-        
-        console.log(insertables);
-        var row1 = main.appendChild(dom.createElement('tr'));
-        var part = row1.appendChild(dom.createElement('input'));
-        part.setAttribute('type', 'text')
-        part.textContent = 'rock on....';
-        part.subject = chunk;
-        main.appendChild(part);
 
         var addListeners = function(part, chunk) {
 
@@ -417,11 +339,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 var author = kb.any(chunk, ns.dc('author')); 
                 if (event.keyCode === 13) {
                     console.log("enter");
-                    newChunk(part, function(ok, body){
-                        //
-
-                    });
-
+                    newChunk(document.activeElement);
                 }
                 console.log(event.key)
             });
@@ -429,7 +347,6 @@ document.addEventListener('DOMContentLoaded', function() {
             part.addEventListener('click', function(event){
                 //var chunk = event.target.subject;
                 var author = kb.any(chunk, ns.dc('author'));
-
 
                 var range;
                 var textNode;
@@ -445,9 +362,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     offset = range.startOffset;
                 }
 
-
-
-               if (me.sameTerm(author)) {
+                if (me.sameTerm(author)) {
                     // continue to edit
      
                     // only split TEXT_NODEs
@@ -476,43 +391,199 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
                 }
             });
-        }
-        addListeners(part, chunk);
 
-                    
-        tabulator.sparql.update([], insertables, function(uri,success,error_body){
-            if (!success) {
-                complainIfBad(success, error_body);
+
+            part.addEventListener('input', function(event) {
+                // console.log("input changed "+part.value);
+                part.setAttribute('style', baseStyle + 'color: #888;'); // grey out - not synced
+                var old = kb.any(chunk, ns.sioc('content')).value;
+                del = [ $rdf.st(chunk, ns.sioc('content'), old, padDoc)];
+                ins = [ $rdf.st(chunk, ns.sioc('content'), part.value, padDoc)];
+                
+                tabulator.sparql.update(del, ins, function(uri,success,error_body){
+                    if (!success) {
+                        alert("clash " + error_body);
+                        console.log("patch FAILED '" + part.value + "' " + error_body);
+                        part.setAttribute('style', baseStyle + 'color: black;  background-color: #fdd;'); // failed
+                        // @@ re-sync entire file ONLY if was clash with someone else
+                        // delete triples and 
+                        // reload triples
+                        // refresh DOM
+                    } else {
+                        part.setAttribute('style', baseStyle + 'color: black;'); // synced
+                        console.log("patch ok " + part.value);
+                        // getResults();
+                    }
+                });
+            }); // listener
+
+
+
+
+            
+        } // addlisteners
+
+ 
+        var newPartBefore = function(tr1, chunk) { // @@ take chunk and add listeners
+            text = kb.any(chunk, ns.sioc('content'));
+            text = text ? text.value : '';
+            var tr = dom.createElement('tr');
+            if (tr1 && tr1.nextSibling) {
+                table.insertBefore(tr, tr1.nextSibling);
             } else {
-                console.log("Initial pad craeted");
-                // getResults();
+                table.appendChild(tr);
             }
-        });
+            var part = tr.appendChild(dom.createElement('input'));
+            part.setAttribute('type', 'text')
+            part.setAttribute('style', baseStyle);
+            part.value = text;
+            part.subject = chunk;
+            addListeners(part, chunk);
+            return part
+        };
 
+        
+               
+        var newChunk = function(ele) { // element of chunk being split
+            var kb = tabulator.kb, tr1;
+
+            var here, next;
+            if (ele) {
+                if (ele.tagName.toLowerCase() !== 'input') {
+                    console.log('return pressed when current document is: ' + ele.tagName)
+                }
+                here = ele.subject;
+                next =  kb.any(here, PAD('next'));
+                tr1 = ele.parentNode;
+            } else {
+                here = subject
+                next = subject;
+                tr1 = undefined;
+            }
+
+            var chunk = tabulator.panes.utils.newThing(padDoc);
+            var part = newPartBefore(tr1, chunk);
+
+            part.subject = chunk;
+            
+            
+
+            del = [ $rdf.st(here, PAD('next'), next, padDoc)];
+            ins = [ $rdf.st(here, PAD('next'), chunk, padDoc),
+                    $rdf.st(chunk, PAD('next'), next, padDoc),
+                    $rdf.st(chunk, ns.dc('author'), me, padDoc),
+                    $rdf.st(chunk, ns.sioc('content'), '', padDoc)];
+
+            tabulator.sparql.update(del, ins, function(uri,ok,error_body){
+                if (!ok) {
+                    alert("Error writing fresh PAD data " + error_body)
+                } else {
+                    //console.log("fresh chunk updated");
+                }
+            });
+            
+            
+            part.focus();
+           
+        }//
+
+
+
+        // Ensure that the display matches the current state of the
         var sync = function() {
             var first = kb.the(subject, PAD('next'));
-            var last = kb.the(undefined, PAD('previous'), subject);
-            var tr = main.firstChild;
-            var field = tr.firstChild;
-            chunk = kb.the(subject, PAD('next'));
-            
-            // First see which of the logical chunks have existing physical manifestations
-            
-            manif = [];
-            for (chunk = kb.the(subject, PAD('next'));  
-                !chunk.sameTerm(subject);
-                chunk = kb.the(chunk, PAD('next'))) {
-                table.children.map(function(tr){
-                })
+            if (kb.each(subject, PAD('next')).length !== 1) {
+                console.log("Pad: Incosistent data - toomany NEXT pointers");
+                alert("Inconsitent data");
+                return
             }
-            while (!chunk.sameTerm(subject) && span.subject.sameTerm(chunk)) {
-                span.textContent = kb.any(chunk, ns.sioc('content')).value;
-                chunk = kb.the(chunk, PAD('next'));
-                span = span.nextSibling();
+            var last = kb.the(undefined, PAD('previous'), subject);
+            var chunk = first; //  = kb.the(subject, PAD('next'));
+            var row = main.firstChild;
+            var text;
+            if (row) {
+                
+                // First see which of the logical chunks have existing physical manifestations
+                
+                manif = [];
+                for (chunk = kb.the(subject, PAD('next'));  
+                    !chunk.sameTerm(subject);
+                    chunk = kb.the(chunk, PAD('next'))) {
+                    table.children.map(function(tr){
+                        if (tr.firstChild.subject.sameTerm(chunk)) {
+                            mainf[chunk.uri] = tr.firstChild;
+                            console.log("connection")
+                        }
+                    })
+                }
+                
+                for (chunk = kb.the(subject, PAD('next'));  
+                    !chunk.sameTerm(subject);
+                    chunk = kb.the(chunk, PAD('next'))) {
+                    if (manif[chunk.uri]) {
+                        while (manif[chunk.uri] !== row.fistChild   &&
+                                                row.nextSibling) {
+                                var nrow = row.nextSibling;
+                                table.removeChild(row); // delete non-matching
+                                row = nrow;
+                        };
+                        if (manif[chunk.uri] === row.fistChild) {
+                            row = row.nextSibling; // sweet
+                        } else { // run out of existing
+                            // // fill in at end -- run off the end of existing rows
+                            // table.appendChild(newRow(chunk))
+                            newPartBefore(undefined, chunk).subject = chunk;
+                        }
+                    } else {
+                        //text = kb.any(chunk, ns.sioc('content')).value;
+                        newPartBefore(row, chunk).subject = chunk; // fill in missing
+                    }
+                };
+            } // if row
+            
+            for (; !chunk.sameTerm(subject); chunk = kb.the(chunk, PAD('next')))  {
+                //table.appendChild(newRow(chunk));
+                //text = kb.any(chunk, ns.sioc('content')).value;
+                newPartBefore(undefined, chunk).subject = chunk;
             }
         };
         
-        // sync()
+        
+        if (exists) {
+            console.log("Existing pad.");
+            sync()
+        } else { // Make new pad
+            console.log("No pad exists - making new one.");
+        
+
+            var insertables = [];
+            insertables.push($rdf.st(subject, ns.dc('author'), me, padDoc));
+            insertables.push($rdf.st(subject, ns.dc('created'), new Date(), padDoc));
+            insertables.push($rdf.st(subject, PAD('next'), subject, padDoc));
+            
+            
+            /*
+            var row1 = main.appendChild(dom.createElement('tr'));
+            var part = row1.appendChild(dom.createElement('input'));
+            part.setAttribute('type', 'text')
+            part.textContent = 'rock on....';
+            part.subject = chunk;
+            main.appendChild(part);
+
+            addListeners(part, chunk);
+            */
+                        
+            tabulator.sparql.update([], insertables, function(uri,success,error_body){
+                if (!success) {
+                    complainIfBad(success, error_body);
+                } else {
+                    console.log("Initial pad created");
+                    newChunk(); // Add a first chunck
+                    // getResults();
+                }
+            });
+        }
+        
         
         return table;
     }
@@ -549,10 +620,10 @@ document.addEventListener('DOMContentLoaded', function() {
         },false);    
     }
     
-    var showResults = function() {
+    var showResults = function(exists) {
         console.log("showResults()");
         
-        var padEle = (tabulator.panes.utils.notepad(dom, subject, {}, function(){
+        var padEle = (tabulator.panes.utils.notepad(dom, subject, { exists: exists }, function(){
         
         }));
         naviMain.appendChild(padEle);
@@ -706,13 +777,13 @@ document.addEventListener('DOMContentLoaded', function() {
         fetcher.nowOrWhenFetched(padDoc.uri, undefined, function(ok, body, xhr){
             if (!ok) {   
                 if (0 + xhr.status === 404) { ///  Check explictly for 404 error
-                    console.log("Initializing deails file " + padDoc)
+                    console.log("Initializing results file " + padDoc)
                     updater.put(padDoc, [], 'text/turtle', function(uri2, ok, message, xhr) {
                         if (ok) {
                             kb.fetcher.saveRequestMetadata(xhr, kb, padDoc.uri);
                             kb.fetcher.saveResponseMetadata(xhr, kb); // Drives the isEditable question
                             clearElement(naviMain);
-                            showResults();
+                            showResults(false);
                         } else {
                             complainIfBad(ok, "FAILED to create results file at: "+ padDoc.uri +' : ' + message);
                             console.log("FAILED to craete results file at: "+ padDoc.uri +' : ' + message);
@@ -723,11 +794,35 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             } else { // Happy read
                 clearElement(naviMain);
-                showResults();
+                showResults(true);
             }
         });
     };
         
+    ////////////////////////////////////////////// Body of App (on loaded lstner)
+    
+    ////////// Who am I
+
+    var me_uri = tabulator.preferences.get('me');
+    var me = me_uri? kb.sym(me_uri) : null;
+    tabulator.panes.utils.checkUser(detailsDoc, setUser);
+        
+    if (!tabulator.preferences.get('me')) {
+        console.log("(You do not have your Web Id set. Sign in or sign up to make changes.)");
+
+        if (tabulator.mode == 'webapp' && typeof document !== 'undefined' &&
+            document.location &&  ('' + document.location).slice(0,16) === 'http://localhost') {
+         
+            me = kb.any(subject, tabulator.ns.dc('author')); // when testing on plane with no webid
+            console.log("Assuming user is " + me)   
+        }
+
+    } else {
+        me = kb.sym(tabulator.preferences.get('me'))
+        // console.log("(Your webid is "+ tabulator.preferences.get('me')+")");
+    };
+
+
     var structure = div.appendChild(dom.createElement('table')); // @@ make responsive style
     structure.setAttribute('style', 'background-color: white; min-width: 40em; min-height: 13em;');
     
