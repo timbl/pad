@@ -522,7 +522,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         // refresh DOM
                     } else {
                         part.setAttribute('style', baseStyle + 'color: black;'); // synced
-                        console.log("patch ok " + part.value);
+                        // console.log("patch ok " + part.value);
                     }
                 });
             }); // listener
