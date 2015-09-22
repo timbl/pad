@@ -92,16 +92,22 @@ document.addEventListener('DOMContentLoaded', function() {
         var links = {}; // map relationship to uri
         var linkHeaders = tabulator.fetcher.getHeader(doc, 'link');
         if (!linkHeaders) return null;
-        linkHeaders.map(function(headerValue){
-            var arg = headerValue.trim().split(';');
-            var uri = arg[0];
-            arg.slice(1).map(function(a){
-                var key = a.split('=')[0].trim();
-                var val = a.split('=')[1].trim();
-                if (key ==='rel') {
-                    links[val] = uri.trim();
-                }
-            });        
+        linkHeaders.map(function(headerLine){
+            headerLine.split(',').map(function(headerValue) {
+                var arg = headerValue.trim().split(';');
+                var uri = arg[0];
+                arg.slice(1).map(function(a){
+                    var key = a.split('=')[0].trim();
+                    var val = a.split('=')[1].trim().replace(/["']/g, ''); // '"
+                    if (key ==='rel') {
+                        uri = uri.trim();
+                        if (uri.slice(0,1) === '<') { // strip < >
+                            uri = uri.slice(1, uri.length-1)
+                        }
+                        links[val] = uri;
+                    }
+                });
+            });
         });
         return links;
     };
@@ -110,9 +116,10 @@ document.addEventListener('DOMContentLoaded', function() {
     var getChangesURI = function(doc, rel) {
         var links = linkRels(doc);
         if (!links[rel]) {
-            console.log("No link header rel=" + rel + " on " + doc.uri)
+            console.log("No link header rel=" + rel + " on " + doc.uri);
             return null;
         }
+        var uri = links[rel]
         var changesURI = $rdf.uri.join(links[rel], doc.uri);
         // console.log("Found rel=" + rel + " URI: " + changesURI);
         return changesURI;
@@ -350,9 +357,10 @@ document.addEventListener('DOMContentLoaded', function() {
         tabulator.fetcher.unload(doc);
         tabulator.fetcher.nowOrWhenFetched(doc.uri, undefined, function(ok, body){
             if (!ok) {
+                callback(false, "Error reloading pad data: "+body)
                 console.log("Cant refresh data:" + body);
             } else {
-                callBack();
+                callBack(true);
             };
         });
     };
@@ -726,22 +734,40 @@ document.addEventListener('DOMContentLoaded', function() {
     var showResults = function(exists) {
         console.log("showResults()");
         
-        var padEle = (tabulator.panes.utils.notepad(dom, subject, { exists: exists };
+        var padEle = (tabulator.panes.utils.notepad(dom, subject, { exists: exists }));
         naviMain.appendChild(padEle);
         
-        var sockURI = getChangesURI(padDoc, 'websocket');
-        var wssURI;
-        if (sockURI) {
-            wssURI = sockURI.replace(/^http:/, 'ws:').replace(/^https:/, 'wss:');
-            console.log("Web socket URI " + wssURI)
+        // Listen for chanes to the pad and update it
+        var sockURI = getChangesURI(padDoc, 'changes'); // Live updates
+        if (!sockURI) {
+            console.log("Server doies not support live updates though rel=changes :-(")
+        } else {
+            var wssURI = sockURI.replace(/^http:/, 'ws:').replace(/^https:/, 'wss:');
+            console.log("Web socket URI " + wssURI);
+            
+            // From https://github.com/solid/solid-spec#live-updates
+            var socket = new WebSocket(wssURI);
+            socket.onopen = function() {
+                this.send('sub ' + padDoc.uri);
+            };
+            socket.onmessage = function(msg) {
+                if (msg.data && msg.data.slice(0, 3) === 'pub') {
+                
+                    reloadDocument(padDoc, function(ok) {
+                        refreshTree(padELe);
+                    });
+                }
+            };
         }
         
+        /*
         var subopts = { 'websockets': true };
         $rdf.subscription(subopts, padDoc, function() {
             reloadDocument(padDoc, function() {
                 refreshTree(structure);
             });
         });
+        */
     };
     
     var showSignon = function showSignon() {
@@ -787,7 +813,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     } 
           
-    /////////////// The forms to configure the poll
+    /////////////// The forms to configure the pad
     
     var showForms = function() {
 
