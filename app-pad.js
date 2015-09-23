@@ -112,6 +112,13 @@ document.addEventListener('DOMContentLoaded', function() {
         return links;
     };
 
+    //  for all Link: uuu; rel=rrr  --->  { rrr: uuu }
+    var getUpdatesVia = function(doc) {
+        var linkHeaders = tabulator.fetcher.getHeader(doc, 'updates-via');
+        if (!linkHeaders) return null;
+        return linkHeaders[0].trim();
+    };
+
 
     var getChangesURI = function(doc, rel) {
         var links = linkRels(doc);
@@ -396,15 +403,11 @@ document.addEventListener('DOMContentLoaded', function() {
         var exists = options.exists;
         var table = dom.createElement('table');
         var kb = tabulator.kb;
-        var mainRow = table.appendChild(dom.createElement('tr'));
+        // var mainRow = table.appendChild(dom.createElement('tr'));
         
         var currentNode, currentOffset;
         var baseStyle = 'font-size: 120%; font-family: monospace; min-width: 50em;'
         
-        var main = mainRow.appendChild(dom.createElement('div'));
-        
-        main.setAttribute('style', 'whitespace: pre-wrap; font-family: monospace; width:60em; min-width:50em; ')
-
 
         var removePart = function(part) {
             var chunk = part.subject;
@@ -503,9 +506,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             });
 
-
-            part.addEventListener('input', function(event) {
-                // console.log("input changed "+part.value);
+            var updateStore = function(part) {
+            
                 part.setAttribute('style', baseStyle + 'color: #888;'); // grey out - not synced
                 var old = kb.any(chunk, ns.sioc('content')).value;
                 del = [ $rdf.st(chunk, ns.sioc('content'), old, padDoc)];
@@ -516,6 +518,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         // alert("clash " + error_body);
                         console.log("patch FAILED '" + part.value + "' " + error_body);
                         part.setAttribute('style', baseStyle + 'color: black;  background-color: #fdd;'); // failed
+                        part.state === 0;
                         // @@ re-sync entire file ONLY if was clash with someone else
                         // delete triples and 
                         // reload triples
@@ -523,13 +526,29 @@ document.addEventListener('DOMContentLoaded', function() {
                     } else {
                         part.setAttribute('style', baseStyle + 'color: black;'); // synced
                         // console.log("patch ok " + part.value);
+                        if (part.state === 2) {
+                            part.state === 1;  // pending: lock
+                            updateStore(part)
+                        } else {
+                            part.state === 0; // clear lock
+                        }
                     }
                 });
+            
+            
+            }
+
+            part.addEventListener('input', function inputChangeListener(event) {
+                // console.log("input changed "+part.value);
+                if (part.state) {
+                    part.state = 2; // please do again
+                    return;
+                } else {
+                    part.state = 1; // in progres
+                }
+                updateStore(part);
+
             }); // listener
-
-
-
-
             
         } // addlisteners
 
@@ -603,59 +622,62 @@ document.addEventListener('DOMContentLoaded', function() {
         var sync = function() {
             var first = kb.the(subject, PAD('next'));
             if (kb.each(subject, PAD('next')).length !== 1) {
-                console.log("Pad: Incosistent data - toomany NEXT pointers");
-                alert("Inconsitent data");
+                console.log("Pad: Inconsistent data - too many NEXT pointers: "
+                    + (kb.each(subject, PAD('next')).length));
+                //alert("Inconsitent data");
                 return
             }
             var last = kb.the(undefined, PAD('previous'), subject);
             var chunk = first; //  = kb.the(subject, PAD('next'));
-            var row = main.firstChild;
-            var text;
-            if (row) {
+            var row = table.firstChild;
                 
                 // First see which of the logical chunks have existing physical manifestations
                 
-                manif = [];
-                for (chunk = kb.the(subject, PAD('next'));  
-                    !chunk.sameTerm(subject);
-                    chunk = kb.the(chunk, PAD('next'))) {
-                    table.children.map(function(tr){
-                        if (tr.firstChild.subject.sameTerm(chunk)) {
-                            mainf[chunk.uri] = tr.firstChild;
-                            console.log("connection")
-                        }
-                    })
-                }
-                
-                for (chunk = kb.the(subject, PAD('next'));  
-                    !chunk.sameTerm(subject);
-                    chunk = kb.the(chunk, PAD('next'))) {
-                    if (manif[chunk.uri]) {
-                        while (manif[chunk.uri] !== row.fistChild   &&
-                                                row.nextSibling) {
-                                var nrow = row.nextSibling;
-                                table.removeChild(row); // delete non-matching
-                                row = nrow;
-                        };
-                        if (manif[chunk.uri] === row.fistChild) {
-                            row = row.nextSibling; // sweet
-                        } else { // run out of existing
-                            // // fill in at end -- run off the end of existing rows
-                            // table.appendChild(newRow(chunk))
-                            newPartBefore(undefined, chunk).subject = chunk;
-                        }
-                    } else {
-                        //text = kb.any(chunk, ns.sioc('content')).value;
-                        newPartBefore(row, chunk).subject = chunk; // fill in missing
+            manif = [];
+            // Find which lines correspond to existing chunks
+            for (chunk = kb.the(subject, PAD('next'));  
+                !chunk.sameTerm(subject);
+                chunk = kb.the(chunk, PAD('next'))) {
+                for (var i=0; i< table.children.length; i++) {
+                    var tr = table.children[i];
+                    if (tr.firstChild.subject.sameTerm(chunk)) {
+                        manif[chunk.uri] = tr.firstChild;
+                        console.log("connection " + tr.firstChild.value)
                     }
-                };
-            } // if row
+                }
+            }
             
+            // Remove any deleted lines
+            for (var i = table.children.length -1; i >= 0 ; i--) {
+                var row = table.children[i];
+                if (!manif[row.subject.uri]) {
+                    table.removeChild(row);
+                }
+            }
+            // Insert any new lines
+            row = table.firstChild;
+            for (chunk = kb.the(subject, PAD('next'));  
+                !chunk.sameTerm(subject);
+                chunk = kb.the(chunk, PAD('next'))) {
+                var text = kb.any(chunk, ns.sioc('content')).value;
+                // superstitious -- don't mess with unchanged input fields
+                // which may be selected by the user
+                if (manif[chunk.uri]) { 
+                    if (text !== row.firstChild.value) {
+                        row.firstChild.value = text;
+                    }
+                    row = row.nextSibling
+                } else {
+                    newPartBefore(row, chunk).subject = chunk;
+                }
+            };
+            /*
             for (; !chunk.sameTerm(subject); chunk = kb.the(chunk, PAD('next')))  {
                 //table.appendChild(newRow(chunk));
                 //text = kb.any(chunk, ns.sioc('content')).value;
                 newPartBefore(undefined, chunk).subject = chunk;
             }
+            */
         };
         
         table.refresh = sync; // Catch downward propagating refresh events
@@ -672,18 +694,6 @@ document.addEventListener('DOMContentLoaded', function() {
             insertables.push($rdf.st(subject, ns.dc('created'), new Date(), padDoc));
             insertables.push($rdf.st(subject, PAD('next'), subject, padDoc));
             
-            
-            /*
-            var row1 = main.appendChild(dom.createElement('tr'));
-            var part = row1.appendChild(dom.createElement('input'));
-            part.setAttribute('type', 'text')
-            part.textContent = 'rock on....';
-            part.subject = chunk;
-            main.appendChild(part);
-
-            addListeners(part, chunk);
-            */
-                        
             tabulator.sparql.update([], insertables, function(uri,success,error_body){
                 if (!success) {
                     complainIfBad(success, error_body);
@@ -738,11 +748,14 @@ document.addEventListener('DOMContentLoaded', function() {
         naviMain.appendChild(padEle);
         
         // Listen for chanes to the pad and update it
-        var sockURI = getChangesURI(padDoc, 'changes'); // Live updates
-        if (!sockURI) {
-            console.log("Server doies not support live updates though rel=changes :-(")
+        var wssURI = getUpdatesVia(padDoc); // relative
+
+        //var sockURI = getChangesURI(padDoc, 'changes'); // Live updates 2
+        if (!wssURI) {
+            console.log("Server doies not support live updates thoughUpdates-Via :-(")
         } else {
-            var wssURI = sockURI.replace(/^http:/, 'ws:').replace(/^https:/, 'wss:');
+            wssURI = $rdf.uri.join(wssURI, padDoc.uri); 
+            wssURI = wssURI.replace(/^http:/, 'ws:').replace(/^https:/, 'wss:');
             console.log("Web socket URI " + wssURI);
             
             // From https://github.com/solid/solid-spec#live-updates
@@ -754,7 +767,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (msg.data && msg.data.slice(0, 3) === 'pub') {
                 
                     reloadDocument(padDoc, function(ok) {
-                        refreshTree(padELe);
+                        refreshTree(padEle);
                     });
                 }
             };
