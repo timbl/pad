@@ -64,8 +64,8 @@ document.addEventListener('DOMContentLoaded', function() {
         var xhr = $rdf.Util.XMLHTTPFactory();
         xhr.onreadystatechange = function (){
             if (xhr.readyState == 4){
-                var success = (!xhr.status || (xhr.status >= 200 && xhr.status < 300));
-                callback(uri, success, xhr.responseText, xhr);
+                var ok = (!xhr.status || (xhr.status >= 200 && xhr.status < 300));
+                callback(uri, ok, xhr.responseText, xhr);
             }
         };
         xhr.open(method, uri, true);
@@ -76,11 +76,11 @@ document.addEventListener('DOMContentLoaded', function() {
     };
     
     var webCopy = function(here, there, content_type, callback) {
-        webOperation('GET', here,  {}, function(uri, success, body, xhr) {
-            if (success) {
+        webOperation('GET', here,  {}, function(uri, ok, body, xhr) {
+            if (ok) {
                 webOperation('PUT', there, { data: xhr.responseText, contentType: content_type}, callback);
             } else {
-                callback(uri, success, "(on read) " + body, xhr);
+                callback(uri, ok, "(on read) " + body, xhr);
             }
         });
     };
@@ -421,8 +421,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     .concat(kb.statementsMatching(undefined, undefined, chunk, padDoc));
             var ins = [ $rdf.st(prev, PAD('next'), next, padDoc) ];
 
-           tabulator.sparql.update(del, ins, function(uri,success,error_body){
-                if (!success) {
+           tabulator.sparql.update(del, ins, function(uri,ok,error_body){
+                if (!ok) {
                     //alert("Fail to removePart " + error_body);
                     console.log("removePart FAILED '" + part.value + "' " + error_body);
                     part.setAttribute('style', baseStyle + 'color: black;  background-color: #fdd;'); // failed
@@ -507,18 +507,18 @@ document.addEventListener('DOMContentLoaded', function() {
             });
 
             var updateStore = function(part) {
-            
+                var chunk = part.subject;
                 part.setAttribute('style', baseStyle + 'color: #888;'); // grey out - not synced
                 var old = kb.any(chunk, ns.sioc('content')).value;
                 del = [ $rdf.st(chunk, ns.sioc('content'), old, padDoc)];
                 ins = [ $rdf.st(chunk, ns.sioc('content'), part.value, padDoc)];
                 
-                tabulator.sparql.update(del, ins, function(uri,success,error_body){
-                    if (!success) {
+                tabulator.sparql.update(del, ins, function(uri,ok,error_body){
+                    if (!ok) {
                         // alert("clash " + error_body);
                         console.log("patch FAILED '" + part.value + "' " + error_body);
                         part.setAttribute('style', baseStyle + 'color: black;  background-color: #fdd;'); // failed
-                        part.state === 0;
+                        part.state = 0;
                         // @@ re-sync entire file ONLY if was clash with someone else
                         // delete triples and 
                         // reload triples
@@ -527,10 +527,10 @@ document.addEventListener('DOMContentLoaded', function() {
                         part.setAttribute('style', baseStyle + 'color: black;'); // synced
                         // console.log("patch ok " + part.value);
                         if (part.state === 2) {
-                            part.state === 1;  // pending: lock
+                            part.state = 1;  // pending: lock
                             updateStore(part)
                         } else {
-                            part.state === 0; // clear lock
+                            part.state = 0; // clear lock
                         }
                     }
                 });
@@ -540,6 +540,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
             part.addEventListener('input', function inputChangeListener(event) {
                 // console.log("input changed "+part.value);
+                part.setAttribute('style', baseStyle + 'color: #888;'); // grey out - not synced
                 if (part.state) {
                     part.state = 2; // please do again
                     return;
@@ -592,10 +593,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
             var chunk = tabulator.panes.utils.newThing(padDoc);
             var part = newPartBefore(tr1, chunk);
-
-            part.subject = chunk;
-            
-            
 
             del = [ $rdf.st(here, PAD('next'), next, padDoc)];
             ins = [ $rdf.st(here, PAD('next'), chunk, padDoc),
@@ -650,7 +647,7 @@ document.addEventListener('DOMContentLoaded', function() {
             // Remove any deleted lines
             for (var i = table.children.length -1; i >= 0 ; i--) {
                 var row = table.children[i];
-                if (!manif[row.subject.uri]) {
+                if (!manif[row.firstChild.subject.uri]) {
                     table.removeChild(row);
                 }
             }
@@ -668,16 +665,9 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
                     row = row.nextSibling
                 } else {
-                    newPartBefore(row, chunk).subject = chunk;
+                    newPartBefore(row, chunk);
                 }
             };
-            /*
-            for (; !chunk.sameTerm(subject); chunk = kb.the(chunk, PAD('next')))  {
-                //table.appendChild(newRow(chunk));
-                //text = kb.any(chunk, ns.sioc('content')).value;
-                newPartBefore(undefined, chunk).subject = chunk;
-            }
-            */
         };
         
         table.refresh = sync; // Catch downward propagating refresh events
@@ -687,16 +677,15 @@ document.addEventListener('DOMContentLoaded', function() {
             sync()
         } else { // Make new pad
             console.log("No pad exists - making new one.");
-        
 
             var insertables = [];
             insertables.push($rdf.st(subject, ns.dc('author'), me, padDoc));
             insertables.push($rdf.st(subject, ns.dc('created'), new Date(), padDoc));
             insertables.push($rdf.st(subject, PAD('next'), subject, padDoc));
             
-            tabulator.sparql.update([], insertables, function(uri,success,error_body){
-                if (!success) {
-                    complainIfBad(success, error_body);
+            tabulator.sparql.update([], insertables, function(uri,ok,error_body){
+                if (!ok) {
+                    complainIfBad(ok, error_body);
                 } else {
                     console.log("Initial pad created");
                     newChunk(); // Add a first chunck
@@ -704,8 +693,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             });
         }
-        
-        
         return table;
     }
     
@@ -910,9 +897,9 @@ document.addEventListener('DOMContentLoaded', function() {
             if (kb.any(subject, SCHED('ready'))) { // already done
                 getResults();
             } else {
-                tabulator.sparql.update([], insertables, function(uri,success,error_body){
-                    if (!success) {
-                        complainIfBad(success, error_body);
+                tabulator.sparql.update([], insertables, function(uri,ok,error_body){
+                    if (!ok) {
+                        complainIfBad(ok, error_body);
                     } else {
                         getResults();
                     }
