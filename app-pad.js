@@ -31,7 +31,8 @@ document.addEventListener('DOMContentLoaded', function() {
     var base = uri.slice(0, uri.lastIndexOf('/')+1);
     var subject_uri = base  + 'details.ttl#thisPad';
     
-    var forms_uri = window.document.title = base+ 'forms.ttl';
+    window.document.title = "Pad";
+    var forms_uri = base + 'forms.ttl';
 //    var forms_uri = 'https://linkeddata.github.io/app-schedule/forms.ttl'; // CORS blocks
     var scriptBase = 'https://linkeddata.github.io/app-pad/';
 
@@ -206,6 +207,33 @@ document.addEventListener('DOMContentLoaded', function() {
             showAppropriateDisplay();
         }
     }
+
+
+    ////////// Who am I
+
+    var whoAmI = function() {
+        var me_uri = tabulator.preferences.get('me');
+        me = me_uri? kb.sym(me_uri) : null;
+        tabulator.panes.utils.checkUser(detailsDoc, setUser);
+            
+        if (!tabulator.preferences.get('me')) {
+            console.log("(You do not have your Web Id set. Sign in or sign up to make changes.)");
+
+            if (tabulator.mode == 'webapp' && typeof document !== 'undefined' &&
+                document.location &&  ('' + document.location).slice(0,16) === 'http://localhost') {
+             
+                me = kb.any(subject, tabulator.ns.dc('author')); // when testing on plane with no webid
+                console.log("Assuming user is " + me)   
+            }
+
+        } else {
+            me = kb.sym(tabulator.preferences.get('me'))
+            // console.log("(Your webid is "+ tabulator.preferences.get('me')+")");
+        };
+    }
+
+
+
 
     ////////////////////////////////  Reproduction: spawn a new instance
     //
@@ -406,7 +434,23 @@ document.addEventListener('DOMContentLoaded', function() {
         // var mainRow = table.appendChild(dom.createElement('tr'));
         
         var currentNode, currentOffset;
-        var baseStyle = 'font-size: 120%; font-family: monospace; min-width: 50em;'
+        
+        var setPartStyle = function(part, colors) {
+
+            var baseStyle = 'font-size: 100%; font-family: monospace; min-width: 50em; border: none;'; //  font-weight:
+            var headingCore = 'font-family: sans-serif; font-weight: bold;  border: none;'
+            var headingStyle = [ 'font-size: 110%;  padding-top: 0.5em; padding-bottom: 0.5em;min-width: 20em;' ,
+                'font-size: 120%; padding-top: 1em; padding-bottom: 1em; min-width: 20em;' ,
+                'font-size: 150%; padding-top: 1em; padding-bottom: 1em; min-width: 20em;' ];
+
+
+            var indent = kb.any(part.subject, PAD('indent'));
+            indent = indent ? indent.value : 0;
+            var style =  (indent >= 0) ?
+                baseStyle + 'padding-left: ' + (indent * 3) + 'em;'
+                :   headingCore + headingStyle[ -1 - indent ]; 
+            part.setAttribute('style', style + colors);
+        }
         
 
         var removePart = function(part) {
@@ -424,8 +468,10 @@ document.addEventListener('DOMContentLoaded', function() {
            tabulator.sparql.update(del, ins, function(uri,ok,error_body){
                 if (!ok) {
                     //alert("Fail to removePart " + error_body);
-                    console.log("removePart FAILED '" + part.value + "' " + error_body);
-                    part.setAttribute('style', baseStyle + 'color: black;  background-color: #fdd;'); // failed
+                    console.log("removePart FAILED " + chunk + ": " + error_body);
+                    console.log("removePart was deleteing :'" + del);
+                    setPartStyle(part, 'color: black;  background-color: #fdd;');// failed
+                    reloadAndSync();
                     // @@ re-sync entire file ONLY if was clash with someone else
                     // delete triples and 
                     // reload triples
@@ -442,20 +488,59 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         }
         
+        var changeIndent = function(part, chunk, delta) {
+            var del = kb.statementsMatching(chunk, PAD('indent'));
+            var current =  del.length? Number(del[0].object.value) : 0;
+            if (current + delta < -3) return; //  limit negative indent
+            var newIndent = current + delta;
+            var ins = $rdf.st(chunk, PAD('indent'), newIndent, padDoc);
+            tabulator.sparql.update(del, ins, function(uri, ok, error_body){
+                if (!ok) {
+                    console.log("Indent change FAILED '" + newIndent + "' for "+padDoc+": " + error_body);
+                    setPartStyle(part, 'color: black;  background-color: #fdd;'); // failed
+                    reloadAndSync();
+                    // part.state = 0;
+                } else {
+                    setPartStyle(part, 'color: black;'); // synced
+                }
+            });
+        }
+        
         var addListeners = function(part, chunk) {
 
             part.addEventListener('keydown', function(event){
                 var author = kb.any(chunk, ns.dc('author')); 
-                if (event.keyCode === 13) { // Return
+                //  up 38; down 40; left 37; right 39     tab 9; shift 16; escape 27
+                switch(event.keyCode) {
+                case 13:                    // Return
                     console.log("enter");
                     newChunk(document.activeElement);
-                } else if (event.keyCode === 8) { // Delete
+                    break;
+                case 8: // Delete
                     if (part.value.length === 0 ) {
                         console.log("Deleting line")
                         removePart(part);
                     }
+                    break;
+                case 9: // Tab
+                    var delta = event.shiftKey ? -1 : 1;
+                    changeIndent(part, chunk, delta);
+                    event.preventDefault(); // default is to highlight next field
+                    break;
+                case 38: // Up
+                    if (part.previousSibling) {
+                        part.previousSibling.focus();
+                        event.preventDefault();
+                    }
+
+                case 40: // Down
+                    if (part.nextSibling) {
+                        part.nextSibling.focus();
+                        event.preventDefault();
+                    }
+
+                default:
                 }
-                // console.log(event.keyCode)
             });
 
             part.addEventListener('click', function(event){
@@ -508,7 +593,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
             var updateStore = function(part) {
                 var chunk = part.subject;
-                part.setAttribute('style', baseStyle + 'color: #888;'); // grey out - not synced
+                setPartStyle(part, 'color: #888;');
                 var old = kb.any(chunk, ns.sioc('content')).value;
                 del = [ $rdf.st(chunk, ns.sioc('content'), old, padDoc)];
                 ins = [ $rdf.st(chunk, ns.sioc('content'), part.value, padDoc)];
@@ -517,14 +602,15 @@ document.addEventListener('DOMContentLoaded', function() {
                     if (!ok) {
                         // alert("clash " + error_body);
                         console.log("patch FAILED '" + part.value + "' " + error_body);
-                        part.setAttribute('style', baseStyle + 'color: black;  background-color: #fdd;'); // failed
+                        setPartStyle(part,'color: black;  background-color: #fdd;'); // failed
                         part.state = 0;
+                        reloadAndSync();
                         // @@ re-sync entire file ONLY if was clash with someone else
                         // delete triples and 
                         // reload triples
                         // refresh DOM
                     } else {
-                        part.setAttribute('style', baseStyle + 'color: black;'); // synced
+                        setPartStyle(part, 'color: black;'); // synced
                         // console.log("patch ok " + part.value);
                         if (part.state === 2) {
                             part.state = 1;  // pending: lock
@@ -534,13 +620,11 @@ document.addEventListener('DOMContentLoaded', function() {
                         }
                     }
                 });
-            
-            
             }
 
             part.addEventListener('input', function inputChangeListener(event) {
                 // console.log("input changed "+part.value);
-                part.setAttribute('style', baseStyle + 'color: #888;'); // grey out - not synced
+                setPartStyle(part, 'color: #888;'); // grey out - not synced
                 if (part.state) {
                     part.state = 2; // please do again
                     return;
@@ -564,10 +648,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 table.appendChild(tr);
             }
             var part = tr.appendChild(dom.createElement('input'));
-            part.setAttribute('type', 'text')
-            part.setAttribute('style', baseStyle);
-            part.value = text;
             part.subject = chunk;
+            part.setAttribute('type', 'text')
+            setPartStyle(part, '');
+            part.value = text;
             addListeners(part, chunk);
             return part
         };
@@ -670,6 +754,14 @@ document.addEventListener('DOMContentLoaded', function() {
             };
         };
         
+        var reloadAndSync = function() {
+            console.log("RELOADING TO SYNC ENTIRE FILE");
+            reloadDocument(padDoc, function(ok) {
+                console.log("SYNC ENTIRE FILE");
+                refreshTree(table);
+            });
+        }
+        
         table.refresh = sync; // Catch downward propagating refresh events
         
         if (exists) {
@@ -730,6 +822,8 @@ document.addEventListener('DOMContentLoaded', function() {
     
     var showResults = function(exists) {
         console.log("showResults()");
+        
+        whoAmI(); // Set me  even if on a plane
         
         var padEle = (tabulator.panes.utils.notepad(dom, subject, { exists: exists }));
         naviMain.appendChild(padEle);
@@ -942,27 +1036,6 @@ document.addEventListener('DOMContentLoaded', function() {
         
     ////////////////////////////////////////////// Body of App (on loaded lstner)
     
-    ////////// Who am I
-
-    var me_uri = tabulator.preferences.get('me');
-    var me = me_uri? kb.sym(me_uri) : null;
-    tabulator.panes.utils.checkUser(detailsDoc, setUser);
-        
-    if (!tabulator.preferences.get('me')) {
-        console.log("(You do not have your Web Id set. Sign in or sign up to make changes.)");
-
-        if (tabulator.mode == 'webapp' && typeof document !== 'undefined' &&
-            document.location &&  ('' + document.location).slice(0,16) === 'http://localhost') {
-         
-            me = kb.any(subject, tabulator.ns.dc('author')); // when testing on plane with no webid
-            console.log("Assuming user is " + me)   
-        }
-
-    } else {
-        me = kb.sym(tabulator.preferences.get('me'))
-        // console.log("(Your webid is "+ tabulator.preferences.get('me')+")");
-    };
-
     //  Build the DOM
     
     var structure = div.appendChild(dom.createElement('table')); // @@ make responsive style
