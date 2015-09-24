@@ -747,6 +747,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     if (text !== row.firstChild.value) {
                         row.firstChild.value = text;
                     }
+                    row.firstChild.state = 0;
                     row = row.nextSibling
                 } else {
                     newPartBefore(row, chunk);
