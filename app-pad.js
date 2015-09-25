@@ -704,7 +704,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (!ok) {
                     alert("Error writing fresh PAD data " + error_body)
                 } else {
-                    //console.log("fresh chunk updated");
+                    console.log("fresh chunk updated");
                     setPartStyle(part);
                 }
             });
