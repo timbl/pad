@@ -436,15 +436,22 @@ document.addEventListener('DOMContentLoaded', function() {
         var currentNode, currentOffset;
         
         var setPartStyle = function(part, colors) {
-
+            var chunk = part.subject;
             var baseStyle = 'font-size: 100%; font-family: monospace; min-width: 50em; border: none;'; //  font-weight:
             var headingCore = 'font-family: sans-serif; font-weight: bold;  border: none;'
             var headingStyle = [ 'font-size: 110%;  padding-top: 0.5em; padding-bottom: 0.5em;min-width: 20em;' ,
                 'font-size: 120%; padding-top: 1em; padding-bottom: 1em; min-width: 20em;' ,
                 'font-size: 150%; padding-top: 1em; padding-bottom: 1em; min-width: 20em;' ];
 
+            var author = kb.any(chunk, ns.dc('author'));
+            if (!colors && author) { // Hash the user webid for now -- later allow user selection!
+                var hash = function(x){return x.split("").reduce(function(a,b){a=((a<<5)-a)+b.charCodeAt(0);return a&a},0); }
+                var bgcolor = '#' + ((hash(author.uri) & 0xffffff) | 0xc0c0c0).toString(16); // c0c0c0 or 808080 forces pale
+                colors = 'color: black; background-color: ' + bgcolor + ';'
+            }
 
-            var indent = kb.any(part.subject, PAD('indent'));
+            var indent = kb.any(chunk, PAD('indent'));
+            
             indent = indent ? indent.value : 0;
             var style =  (indent >= 0) ?
                 baseStyle + 'padding-left: ' + (indent * 3) + 'em;'
@@ -501,7 +508,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     reloadAndSync();
                     // part.state = 0;
                 } else {
-                    setPartStyle(part, 'color: black;'); // synced
+                    setPartStyle(part); // synced
                 }
             });
         }
@@ -527,6 +534,10 @@ document.addEventListener('DOMContentLoaded', function() {
                     changeIndent(part, chunk, delta);
                     event.preventDefault(); // default is to highlight next field
                     break;
+                case 27:  // ESC
+                    reloadAndSync();
+                    break;
+                    
                 case 38: // Up
                     if (part.previousSibling) {
                         part.previousSibling.focus();
@@ -610,7 +621,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         // reload triples
                         // refresh DOM
                     } else {
-                        setPartStyle(part, 'color: black;'); // synced
+                        setPartStyle(part); // synced
                         // console.log("patch ok " + part.value);
                         if (part.state === 2) {
                             part.state = 1;  // pending: lock
@@ -661,12 +672,14 @@ document.addEventListener('DOMContentLoaded', function() {
         var newChunk = function(ele) { // element of chunk being split
             var kb = tabulator.kb, tr1;
 
-            var here, next;
+            var here, next, indent = 0;
             if (ele) {
                 if (ele.tagName.toLowerCase() !== 'input') {
                     console.log('return pressed when current document is: ' + ele.tagName)
                 }
                 here = ele.subject;
+                indent = kb.any(here, PAD('indent'));
+                indent = indent? Number(indent.value)  : 0;
                 next =  kb.any(here, PAD('next'));
                 tr1 = ele.parentNode;
             } else {
@@ -683,15 +696,18 @@ document.addEventListener('DOMContentLoaded', function() {
                     $rdf.st(chunk, PAD('next'), next, padDoc),
                     $rdf.st(chunk, ns.dc('author'), me, padDoc),
                     $rdf.st(chunk, ns.sioc('content'), '', padDoc)];
+            if (indent > 0) { // Do not inherit 
+                ins.push($rdf.st(chunk, PAD('indent'), indent, padDoc));
+            }
 
             tabulator.sparql.update(del, ins, function(uri,ok,error_body){
                 if (!ok) {
                     alert("Error writing fresh PAD data " + error_body)
                 } else {
                     //console.log("fresh chunk updated");
+                    setPartStyle(part);
                 }
             });
-            
             
             part.focus();
            
@@ -723,7 +739,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     var tr = table.children[i];
                     if (tr.firstChild.subject.sameTerm(chunk)) {
                         manif[chunk.uri] = tr.firstChild;
-                        console.log("connection " + tr.firstChild.value)
                     }
                 }
             }
