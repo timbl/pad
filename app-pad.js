@@ -774,6 +774,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         
         table.refresh = sync; // Catch downward propagating refresh events
+        table.reloadAndSync = reloadAndSync;
         
         if (exists) {
             console.log("Existing pad.");
@@ -855,9 +856,19 @@ document.addEventListener('DOMContentLoaded', function() {
             socket.onopen = function() {
                 this.send('sub ' + padDoc.uri);
             };
+            padDoc.upstreamCount = 0; // count change which we initiate ourselves
             socket.onmessage = function(msg) {
                 if (msg.data && msg.data.slice(0, 3) === 'pub') {
-                    tabulator.sparql.requestDownstreamAction(reloadAndSync);
+                    if (padDoc.upstreamCount) {
+                        padDoc.upstreamCount -= 1;
+                        if (padDoc.upstreamCount >= 0) {
+                            console.log("just an echo");
+                            return; // Just an echo
+                         }
+                    }
+                    padDoc.upstreamCount = 0;
+                    console.log("Assume a real downstream change");
+                    tabulator.sparql.requestDownstreamAction(padEle.reloadAndSync);
                 }
             };
         }
