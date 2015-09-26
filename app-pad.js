@@ -389,12 +389,16 @@ document.addEventListener('DOMContentLoaded', function() {
     // Reload resorce then
     
     var reloadDocument = function(doc, callBack) {
+        console.log("Unloading " + tabulator.kb.statementsMatching(undefined, undefined, undefined, doc).length
+            + " out of " + tabulator.kb.statements.length)
         tabulator.fetcher.unload(doc);
-        tabulator.fetcher.nowOrWhenFetched(doc.uri, undefined, function(ok, body){
+        tabulator.fetcher.nowOrWhenFetched(doc.uri, {force: true}, function(ok, body){
             if (!ok) {
                 callback(false, "Error reloading pad data: "+body)
                 console.log("Cant refresh data:" + body);
             } else {
+                console.log("Reloaded " + tabulator.kb.statementsMatching(undefined, undefined, undefined, doc).length
+                    + " out of " + tabulator.kb.statements.length)
                 callBack(true);
             };
         });
@@ -869,15 +873,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             };
         }
-        
-        /*
-        var subopts = { 'websockets': true };
-        $rdf.subscription(subopts, padDoc, function() {
-            reloadDocument(padDoc, function() {
-                refreshTree(structure);
-            });
-        });
-        */
     };
     
     var showSignon = function showSignon() {
