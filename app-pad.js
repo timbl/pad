@@ -482,11 +482,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     console.log("removePart FAILED " + chunk + ": " + error_body);
                     console.log("removePart was deleteing :'" + del);
                     setPartStyle(part, 'color: black;  background-color: #fdd;');// failed
-                    reloadAndSync();
-                    // @@ re-sync entire file ONLY if was clash with someone else
-                    // delete triples and 
-                    // reload triples
-                    // refresh DOM
+                    tabulator.sparql.requestDownstreamAction(reloadAndSync);
                 } else {
                     var row = part.parentNode;
                     var before = row.previousSibling;
@@ -509,10 +505,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (!ok) {
                     console.log("Indent change FAILED '" + newIndent + "' for "+padDoc+": " + error_body);
                     setPartStyle(part, 'color: black;  background-color: #fdd;'); // failed
-                    reloadAndSync();
-                    // part.state = 0;
+                    tabulator.sparql.requestDownstreamAction(reloadAndSync);
                 } else {
-                    setPartStyle(part); // synced
+                    setPartStyle(part); // Implement the indent
                 }
             });
         }
@@ -539,18 +534,18 @@ document.addEventListener('DOMContentLoaded', function() {
                     event.preventDefault(); // default is to highlight next field
                     break;
                 case 27:  // ESC
-                    reloadAndSync();
+                    tabulator.sparql.requestDownstreamAction(reloadAndSync);
                     break;
                     
                 case 38: // Up
-                    if (part.previousSibling) {
-                        part.previousSibling.focus();
+                    if (part.parentNode.previousSibling) {
+                        part.parentNode.previousSibling.firstChild.focus();
                         event.preventDefault();
                     }
 
                 case 40: // Down
-                    if (part.nextSibling) {
-                        part.nextSibling.focus();
+                    if (part.parentNode.nextSibling) {
+                        part.parentNode.nextSibling.firstChildfocus();
                         event.preventDefault();
                     }
 
@@ -619,11 +614,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         console.log("patch FAILED '" + part.value + "' " + error_body);
                         setPartStyle(part,'color: black;  background-color: #fdd;'); // failed
                         part.state = 0;
-                        reloadAndSync();
-                        // @@ re-sync entire file ONLY if was clash with someone else
-                        // delete triples and 
-                        // reload triples
-                        // refresh DOM
+                        tabulator.sparql.requestDownstreamAction(reloadAndSync);
                     } else {
                         setPartStyle(part); // synced
                         // console.log("patch ok " + part.value);
