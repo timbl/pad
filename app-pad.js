@@ -857,10 +857,7 @@ document.addEventListener('DOMContentLoaded', function() {
             };
             socket.onmessage = function(msg) {
                 if (msg.data && msg.data.slice(0, 3) === 'pub') {
-                
-                    reloadDocument(padDoc, function(ok) {
-                        refreshTree(padEle);
-                    });
+                    tabulator.sparql.requestDownstreamAction(reloadAndSync);
                 }
             };
         }
