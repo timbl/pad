@@ -766,9 +766,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 // superstitious -- don't mess with unchanged input fields
                 // which may be selected by the user
                 if (manif[chunk.uri]) { 
-                    if (text !== row.firstChild.value) {
-                        row.firstChild.value = text;
+                    var part = row.firstChild;
+                    if (text !== part.value) {
+                        part.value = text;
                     }
+                    setPartStyle(part);
                     row.firstChild.state = 0;
                     row = row.nextSibling
                 } else {
