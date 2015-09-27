@@ -482,7 +482,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     console.log("removePart FAILED " + chunk + ": " + error_body);
                     console.log("removePart was deleteing :'" + del);
                     setPartStyle(part, 'color: black;  background-color: #fdd;');// failed
-                    tabulator.sparql.requestDownstreamAction(reloadAndSync);
+                    tabulator.sparql.requestDownstreamAction(padDoc, reloadAndSync);
                 } else {
                     var row = part.parentNode;
                     var before = row.previousSibling;
@@ -505,7 +505,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (!ok) {
                     console.log("Indent change FAILED '" + newIndent + "' for "+padDoc+": " + error_body);
                     setPartStyle(part, 'color: black;  background-color: #fdd;'); // failed
-                    tabulator.sparql.requestDownstreamAction(reloadAndSync);
+                    tabulator.sparql.requestDownstreamAction(padDoc, reloadAndSync);
                 } else {
                     setPartStyle(part); // Implement the indent
                 }
@@ -534,7 +534,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     event.preventDefault(); // default is to highlight next field
                     break;
                 case 27:  // ESC
-                    tabulator.sparql.requestDownstreamAction(reloadAndSync);
+                    tabulator.sparql.requestDownstreamAction(padDoc, reloadAndSync);
                     break;
                     
                 case 38: // Up
@@ -614,7 +614,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         console.log("patch FAILED '" + part.value + "' " + error_body);
                         setPartStyle(part,'color: black;  background-color: #fdd;'); // failed
                         part.state = 0;
-                        tabulator.sparql.requestDownstreamAction(reloadAndSync);
+                        tabulator.sparql.requestDownstreamAction(padDoc, reloadAndSync);
                     } else {
                         setPartStyle(part); // synced
                         // console.log("patch ok " + part.value);
@@ -868,7 +868,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
                     padDoc.upstreamCount = 0;
                     console.log("Assume a real downstream change");
-                    tabulator.sparql.requestDownstreamAction(padEle.reloadAndSync);
+                    tabulator.sparql.requestDownstreamAction(padDoc, padEle.reloadAndSync);
                 }
             };
         }
