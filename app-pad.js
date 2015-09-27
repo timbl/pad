@@ -542,12 +542,14 @@ document.addEventListener('DOMContentLoaded', function() {
                         part.parentNode.previousSibling.firstChild.focus();
                         event.preventDefault();
                     }
+                    break;
 
                 case 40: // Down
                     if (part.parentNode.nextSibling) {
-                        part.parentNode.nextSibling.firstChildfocus();
+                        part.parentNode.nextSibling.firstChild.focus();
                         event.preventDefault();
                     }
+                    reak;
 
                 default:
                 }
@@ -671,7 +673,7 @@ document.addEventListener('DOMContentLoaded', function() {
         var newChunk = function(ele, before) { // element of chunk being split
             var kb = tabulator.kb, tr1;
 
-            var here, next, indent = 0;
+            var here, prev, next, indent = 0;
             if (ele) {
                 if (ele.tagName.toLowerCase() !== 'input') {
                     console.log('return pressed when current document is: ' + ele.tagName)
@@ -679,11 +681,16 @@ document.addEventListener('DOMContentLoaded', function() {
                 here = ele.subject;
                 indent = kb.any(here, PAD('indent'));
                 indent = indent? Number(indent.value)  : 0;
-                
-                next =  kb.any(here, PAD('next'));
+                if (before) {
+                    prev =  kb.any(undefined, PAD('next'), here);
+                    next = here;
+                } else {
+                    prev = here;
+                    next =  kb.any(here, PAD('next'));
+                }
                 tr1 = ele.parentNode;
             } else {
-                here = subject
+                prev = subject
                 next = subject;
                 tr1 = undefined;
             }
@@ -691,8 +698,8 @@ document.addEventListener('DOMContentLoaded', function() {
             var chunk = tabulator.panes.utils.newThing(padDoc);
             var part = newPartAfter(tr1, chunk, before);
 
-            del = [ $rdf.st(here, PAD('next'), next, padDoc)];
-            ins = [ $rdf.st(here, PAD('next'), chunk, padDoc),
+            del = [ $rdf.st(prev, PAD('next'), next, padDoc)];
+            ins = [ $rdf.st(prev, PAD('next'), chunk, padDoc),
                     $rdf.st(chunk, PAD('next'), next, padDoc),
                     $rdf.st(chunk, ns.dc('author'), me, padDoc),
                     $rdf.st(chunk, ns.sioc('content'), '', padDoc)];
