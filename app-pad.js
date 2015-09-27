@@ -519,8 +519,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 //  up 38; down 40; left 37; right 39     tab 9; shift 16; escape 27
                 switch(event.keyCode) {
                 case 13:                    // Return
-                    console.log("enter");
-                    newChunk(document.activeElement);
+                    console.log("enter");   // Shift-return inserts before -- only way to add to top of pad.
+                    newChunk(document.activeElement, event.shiftKey);
                     break;
                 case 8: // Delete
                     if (part.value.length === 0 ) {
@@ -644,14 +644,18 @@ document.addEventListener('DOMContentLoaded', function() {
         } // addlisteners
 
  
-        var newPartBefore = function(tr1, chunk) { // @@ take chunk and add listeners
+        var newPartAfter = function(tr1, chunk, before) { // @@ take chunk and add listeners
             text = kb.any(chunk, ns.sioc('content'));
             text = text ? text.value : '';
             var tr = dom.createElement('tr');
-            if (tr1 && tr1.nextSibling) {
-                table.insertBefore(tr, tr1.nextSibling);
-            } else {
-                table.appendChild(tr);
+            if (before) {
+                table.insertBefore(tr, tr1);
+            } else { // after
+                if (tr1 && tr1.nextSibling) {
+                    table.insertBefore(tr, tr1.nextSibling);
+                } else {
+                    table.appendChild(tr);
+                }
             }
             var part = tr.appendChild(dom.createElement('input'));
             part.subject = chunk;
@@ -664,7 +668,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         
                
-        var newChunk = function(ele) { // element of chunk being split
+        var newChunk = function(ele, before) { // element of chunk being split
             var kb = tabulator.kb, tr1;
 
             var here, next, indent = 0;
@@ -675,6 +679,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 here = ele.subject;
                 indent = kb.any(here, PAD('indent'));
                 indent = indent? Number(indent.value)  : 0;
+                
                 next =  kb.any(here, PAD('next'));
                 tr1 = ele.parentNode;
             } else {
@@ -684,7 +689,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
 
             var chunk = tabulator.panes.utils.newThing(padDoc);
-            var part = newPartBefore(tr1, chunk);
+            var part = newPartAfter(tr1, chunk, before);
 
             del = [ $rdf.st(here, PAD('next'), next, padDoc)];
             ins = [ $rdf.st(here, PAD('next'), chunk, padDoc),
@@ -760,7 +765,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     row.firstChild.state = 0;
                     row = row.nextSibling
                 } else {
-                    newPartBefore(row, chunk);
+                    newPartAfter(row, chunk, true); // actually before
                 }
             };
         };
