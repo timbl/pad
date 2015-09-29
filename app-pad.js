@@ -558,7 +558,7 @@ document.addEventListener('DOMContentLoaded', function() {
     var subject = kb.sym(subject_uri);
     var thisInstance = subject;
          
-    var padDoc = $rdf.sym(base + 'padd.ttl');
+    var padDoc = $rdf.sym(base + 'pad.ttl');
     var padEle;
     
     var div = document.getElementById('pad');
