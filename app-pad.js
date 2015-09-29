@@ -3,48 +3,17 @@
 // This is or was part of https://github.com/timbl/pad
 //
 
+
+// Let's make this a one-data-file app.  For fun.  All running data and config go in one file.
+//
+
+
+
+
+
 document.addEventListener('DOMContentLoaded', function() {
-// jQuery(document).ready(function() {
 
 
-    var appPathSegment = 'app-pad.timbl.com'; // how to allocate this string and connect to 
-    
-    
-    //////////////////////////////////////////////
-
-    var kb = tabulator.kb;
-    var fetcher = tabulator.sf;
-    var ns = tabulator.ns;
-    var dom = document;
-    var me;
-    var updater = new $rdf.sparqlUpdate(kb);
-    var waitingForLogin = false;
-
-    var ICAL = $rdf.Namespace('http://www.w3.org/2002/12/cal/ical#');
-    var SCHED = $rdf.Namespace('http://www.w3.org/ns/pim/schedule#');
-    var PAD = $rdf.Namespace('http://www.w3.org/ns/pim/pad#');
-    var DC = $rdf.Namespace('http://purl.org/dc/elements/1.1/');
-    var UI = $rdf.Namespace('http://www.w3.org/ns/ui#');
-    var FOAF = $rdf.Namespace('http://xmlns.com/foaf/0.1/');
-    
-    var uri = window.location.href;
-    var base = uri.slice(0, uri.lastIndexOf('/')+1);
-    var subject_uri = base  + 'details.ttl#thisPad';
-    
-    window.document.title = "Pad";
-    var forms_uri = base + 'forms.ttl';
-//    var forms_uri = 'https://linkeddata.github.io/app-schedule/forms.ttl'; // CORS blocks
-    var scriptBase = 'https://linkeddata.github.io/app-pad/';
-
-    var subject = kb.sym(subject_uri);
-    var thisInstance = subject;
-    var detailsDoc = kb.sym(subject_uri.split('#')[0]);
-         
-    var padDoc = $rdf.sym(base + 'results.ttl');
-    
-    
-    
-    var div = document.getElementById('pad');
     
     // Utility functions
     
@@ -119,20 +88,6 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!linkHeaders) return null;
         return linkHeaders[0].trim();
     };
-
-
-    var getChangesURI = function(doc, rel) {
-        var links = linkRels(doc);
-        if (!links[rel]) {
-            console.log("No link header rel=" + rel + " on " + doc.uri);
-            return null;
-        }
-        var uri = links[rel]
-        var changesURI = $rdf.uri.join(links[rel], doc.uri);
-        // console.log("Found rel=" + rel + " URI: " + changesURI);
-        return changesURI;
-    };
-
 
     
     //////////////////////// Accesss control
@@ -214,7 +169,7 @@ document.addEventListener('DOMContentLoaded', function() {
     var whoAmI = function() {
         var me_uri = tabulator.preferences.get('me');
         me = me_uri? kb.sym(me_uri) : null;
-        tabulator.panes.utils.checkUser(detailsDoc, setUser);
+        tabulator.panes.utils.checkUser(padDoc, setUser);
             
         if (!tabulator.preferences.get('me')) {
             console.log("(You do not have your Web Id set. Sign in or sign up to make changes.)");
@@ -273,38 +228,34 @@ document.addEventListener('DOMContentLoaded', function() {
         var kb = tabulator.kb;
         
         
-        newDetailsDoc = kb.sym(newBase + 'details.ttl');
-        newpadDoc = kb.sym(newBase + 'results.ttl');
+        newPadDoc = kb.sym(newBase + 'pad.ttl');
         newIndexDoc = kb.sym(newBase + 'index.html');
 
         toBeCopied = [
-            { local: 'index.html', contentType: 'text/html'} ,
-            { local: 'forms.ttl', contentType: 'text/turtle'} 
-//            { local: 'schedule.js', contentType: 'application/javascript'} ,
-//            { local: 'mashlib.js', contentType: 'application/javascript'} , //  @@ centrialize after testing?
+            { local: 'index.html', contentType: 'text/html'} 
         ];
         
-        newInstance = kb.sym(newDetailsDoc.uri + '#pad');
-        kb.add(newInstance, ns.rdf('type'), PAD('Noitepad'), newDetailsDoc);
-        if (me) {
-            kb.add(newInstance, DC('author'), me, newDetailsDoc);
-        }
+        newInstance = kb.sym(newPadDoc.uri + '#thisPad');
+        kb.add(newInstance, ns.rdf('type'), PAD('Notepad'), newPadDoc);
         
-        kb.add(newInstance, DC('created'), new Date(), newDetailsDoc);
-        kb.add(newInstance, SCHED('padDocument'), newDetailsDoc);
+        kb.add(newInstance, DC('created'), new Date(), newPadDoc);
+        if (me) {
+            kb.add(newInstance, DC('author'), me, newPadDoc);
+        }
+        kb.add(newInstance, PAD('next'), newInstance); // linked list empty
         
         // Keep a paper trail   @@ Revisit when we have non-public ones @@ Privacy
-        kb.add(newInstance, tabulator.ns.space('inspiration'), thisInstance, detailsDoc);            
-        kb.add(newInstance, tabulator.ns.space('inspiration'), thisInstance, newDetailsDoc);
+        kb.add(newInstance, tabulator.ns.space('inspiration'), thisInstance, padDoc);            
+        kb.add(newInstance, tabulator.ns.space('inspiration'), thisInstance, newPadDoc);
         
         // $rdf.log.debug("\n Ready to put " + kb.statementsMatching(undefined, undefined, undefined, there)); //@@
 
 
         agenda = [];
-        agenda.push(function createDetailsFile(){
+        agenda.push(function createNewPadDataFile(){
             updater.put(
-                newDetailsDoc,
-                kb.statementsMatching(undefined, undefined, undefined, newDetailsDoc),
+                newPadDoc,
+                kb.statementsMatching(undefined, undefined, undefined, newPadDoc),
                 'text/turtle',
                 function(uri2, ok, message) {
                     if (ok) {
@@ -348,33 +299,20 @@ document.addEventListener('DOMContentLoaded', function() {
         
             
         agenda.push(function() {
-            webOperation('PUT', newpadDoc.uri, { data: "", contentType: 'text/turtle'}, function(ok, body) {
-                complainIfBad(ok, "Failed to initialize empty results file: " + body);
-                if (ok) agenda.shift()();
-            })
-        });
-
-        agenda.push(function() {
             setACL(newpadDoc.uri, true, function(ok, body) {
-                complainIfBad(ok, "Failed to set Read-Write ACL on results file: " + body);
+                complainIfBad(ok, "Failed to set Read-Write ACL on pad data file: " + body);
                 if (ok) agenda.shift()();
             })
         });
 
-        agenda.push(function() {
-            setACL(newDetailsDoc.uri, false, function(ok, body) {
-                complainIfBad(ok, "Failed to set read ACL on configuration file: " + body);
-                if (ok) agenda.shift()();
-            })
-        });
 
         agenda.push(function(){  // give the user links to the new app
         
             var p = div.appendChild(dom.createElement('p'));
             p.setAttribute('style', 'font-size: 140%;') 
             p.innerHTML = 
-                "Your <a href='" + newIndexDoc.uri + "'><b>new notepad</b></a> is ready to be set up. "+
-                "<br/><br/><a href='" + newIndexDoc.uri + "'>Say when you what days work for you.</a>";
+                "Your <a href='" + newIndexDoc.uri + "'><b>new notepad</b></a> is ready. "+
+                "<br/><br/><a href='" + newIndexDoc.uri + "'>Go to new pad</a>";
             });
         
         agenda.shift()();        
@@ -386,20 +324,33 @@ document.addEventListener('DOMContentLoaded', function() {
 
 
 
-    // Reload resorce then
+    // Reload resorce then sync
     
-    var reloadDocument = function(doc, callBack) {
-        console.log("Unloading " + tabulator.kb.statementsMatching(undefined, undefined, undefined, doc).length
+    var reloadAndSync = function() {
+        var doc = padDoc
+        var saved = tabulator.kb.statementsMatching(undefined, undefined, undefined, doc);
+        console.log("RELOADING TO SYNC ENTIRE FILE");
+        console.log("Unloading " + saved.length
             + " out of " + tabulator.kb.statements.length)
         tabulator.fetcher.unload(doc);
-        tabulator.fetcher.nowOrWhenFetched(doc.uri, {force: true}, function(ok, body){
+        var startTime = Date.now();
+        // force sets no-cache and 
+        tabulator.fetcher.nowOrWhenFetched(doc.uri, {force: true, noMeta: true}, function(ok, body){
             if (!ok) {
-                callback(false, "Error reloading pad data: "+body)
-                console.log("Cant refresh data:" + body);
+                console.log("ERROR reloading data! -- restoring original " + saved.length + " statements. Error: " + body);
+                kb.add(saved);
+                //callback(false, "Error reloading pad data: " + body)
             } else {
                 console.log("Reloaded " + tabulator.kb.statementsMatching(undefined, undefined, undefined, doc).length
                     + " out of " + tabulator.kb.statements.length)
-                callBack(true);
+                elapsedTime_ms = Date.now() = startTime;
+                console.log("fetch took "+elapsedTime_ms+"ms. Now sync the DOM.");
+                if (!padDoc.reloadTime_total) padDoc.reloadTime_total = 0;
+                if (!padDoc.reloadTime_count) padDoc.reloadTime_count = 0;
+                padDoc.reloadTime_total += elapsedTime_ms;
+                reloadTime_count += 1;
+                refreshTree(padEle);
+
             };
         });
     };
@@ -420,412 +371,27 @@ document.addEventListener('DOMContentLoaded', function() {
 
 
 
-
-
-
-    ////////////////////////////////////////////////
-    
-    //   The pad widget
-    
-    
-    
-    
-    tabulator.panes.utils.notepad  = function (dom, subject, options) {
-        options = options || {}
-        var exists = options.exists;
-        var table = dom.createElement('table');
-        var kb = tabulator.kb;
-        // var mainRow = table.appendChild(dom.createElement('tr'));
-        
-        var currentNode, currentOffset;
-        
-        var setPartStyle = function(part, colors) {
-            var chunk = part.subject;
-            var baseStyle = 'font-size: 100%; font-family: monospace; min-width: 50em; border: none;'; //  font-weight:
-            var headingCore = 'font-family: sans-serif; font-weight: bold;  border: none;'
-            var headingStyle = [ 'font-size: 110%;  padding-top: 0.5em; padding-bottom: 0.5em;min-width: 20em;' ,
-                'font-size: 120%; padding-top: 1em; padding-bottom: 1em; min-width: 20em;' ,
-                'font-size: 150%; padding-top: 1em; padding-bottom: 1em; min-width: 20em;' ];
-
-            var author = kb.any(chunk, ns.dc('author'));
-            if (!colors && author) { // Hash the user webid for now -- later allow user selection!
-                var hash = function(x){return x.split("").reduce(function(a,b){a=((a<<5)-a)+b.charCodeAt(0);return a&a},0); }
-                var bgcolor = '#' + ((hash(author.uri) & 0xffffff) | 0xc0c0c0).toString(16); // c0c0c0 or 808080 forces pale
-                colors = 'color: black; background-color: ' + bgcolor + ';'
-            }
-
-            var indent = kb.any(chunk, PAD('indent'));
-            
-            indent = indent ? indent.value : 0;
-            var style =  (indent >= 0) ?
-                baseStyle + 'padding-left: ' + (indent * 3) + 'em;'
-                :   headingCore + headingStyle[ -1 - indent ]; 
-            part.setAttribute('style', style + colors);
+    // Manage participation in this session
+    //
+    //  This is more general tham the pad.
+    //
+    var manageParticipation = function(subject) {
+        if (!me) throw "Unknown user";
+        var parps = kb.each(subject, ns.wf('participation')).filter(function(pn){
+            kb.hold(pn, ns.dc('author'), me)});
+        if (parps.length > 1) throw "Multiple participations";
+        if (!parps.length) {
+            participation = tabulator.panes.utils.newThing(padDoc);
         }
-        
-
-        var removePart = function(part) {
-            var chunk = part.subject;
-            var prev = kb.any(undefined, PAD('next'), chunk);
-            var next = kb.any(chunk, PAD('next'));
-            if (prev.sameTerm(subject) && next.sameTerm(subject)) { // Last one
-                console.log("You can't delete the last line.")
-                return;
-            }
-            var del = kb.statementsMatching(chunk, undefined, undefined, padDoc)
-                    .concat(kb.statementsMatching(undefined, undefined, chunk, padDoc));
-            var ins = [ $rdf.st(prev, PAD('next'), next, padDoc) ];
-
-           tabulator.sparql.update(del, ins, function(uri,ok,error_body){
-                if (!ok) {
-                    //alert("Fail to removePart " + error_body);
-                    console.log("removePart FAILED " + chunk + ": " + error_body);
-                    console.log("removePart was deleteing :'" + del);
-                    setPartStyle(part, 'color: black;  background-color: #fdd;');// failed
-                    tabulator.sparql.requestDownstreamAction(padDoc, reloadAndSync);
-                } else {
-                    var row = part.parentNode;
-                    var before = row.previousSibling;
-                    row.parentNode.removeChild(row);
-                    console.log("delete row ok " + part.value);
-                    if (before && before.firstChild) {
-                        before.firstChild.focus();
-                    }
-                }
-            });
-        }
-        
-        var changeIndent = function(part, chunk, delta) {
-            var del = kb.statementsMatching(chunk, PAD('indent'));
-            var current =  del.length? Number(del[0].object.value) : 0;
-            if (current + delta < -3) return; //  limit negative indent
-            var newIndent = current + delta;
-            var ins = $rdf.st(chunk, PAD('indent'), newIndent, padDoc);
-            tabulator.sparql.update(del, ins, function(uri, ok, error_body){
-                if (!ok) {
-                    console.log("Indent change FAILED '" + newIndent + "' for "+padDoc+": " + error_body);
-                    setPartStyle(part, 'color: black;  background-color: #fdd;'); // failed
-                    tabulator.sparql.requestDownstreamAction(padDoc, reloadAndSync);
-                } else {
-                    setPartStyle(part); // Implement the indent
-                }
-            });
-        }
-        
-        var addListeners = function(part, chunk) {
-
-            part.addEventListener('keydown', function(event){
-                var author = kb.any(chunk, ns.dc('author')); 
-                //  up 38; down 40; left 37; right 39     tab 9; shift 16; escape 27
-                switch(event.keyCode) {
-                case 13:                    // Return
-                    console.log("enter");   // Shift-return inserts before -- only way to add to top of pad.
-                    newChunk(document.activeElement, event.shiftKey);
-                    break;
-                case 8: // Delete
-                    if (part.value.length === 0 ) {
-                        console.log("Deleting line")
-                        removePart(part);
-                    }
-                    break;
-                case 9: // Tab
-                    var delta = event.shiftKey ? -1 : 1;
-                    changeIndent(part, chunk, delta);
-                    event.preventDefault(); // default is to highlight next field
-                    break;
-                case 27:  // ESC
-                    tabulator.sparql.requestDownstreamAction(padDoc, reloadAndSync);
-                    break;
-                    
-                case 38: // Up
-                    if (part.parentNode.previousSibling) {
-                        part.parentNode.previousSibling.firstChild.focus();
-                        event.preventDefault();
-                    }
-                    break;
-
-                case 40: // Down
-                    if (part.parentNode.nextSibling) {
-                        part.parentNode.nextSibling.firstChild.focus();
-                        event.preventDefault();
-                    }
-                    reak;
-
-                default:
-                }
-            });
-
-            part.addEventListener('click', function(event){
-                //var chunk = event.target.subject;
-                var author = kb.any(chunk, ns.dc('author'));
-
-                var range;
-                var textNode;
-                var offset;
-
-                if (document.caretPositionFromPoint) {
-                    range = document.caretPositionFromPoint(event.clientX, event.clientY);
-                    textNode = range.offsetNode;
-                    offset = range.offset;
-                } else if (document.caretRangeFromPoint) {
-                    range = document.caretRangeFromPoint(event.clientX, event.clientY);
-                    textNode = range.startContainer;
-                    offset = range.startOffset;
-                }
-
-                if (me.sameTerm(author)) {
-                    // continue to edit
-     
-                    // only split TEXT_NODEs
-                    if (textNode.nodeType == 3) {
-                        textNode.textContent = textNode.textContent.slice(0,offset) 
-                        + '#' + textNode.textContent.slice(offset); 
-                        currentNode = textNode;
-                        currentOffset = offset;
-                    }
-                
-                } else {
-                    // @@ where is the cursor?
-                    // https://developer.mozilla.org/en-US/docs/Web/API/Document/caretPositionFromPoint
-                    // https://drafts.csswg.org/cssom-view/#the-caretposition-interface
-                    
-                    
-                    // only split TEXT_NODEs
-                    if (textNode.nodeType == 3) {
-                    
-                        var replacement = textNode.splitText(offset);
-                        
-                        var bling = document.createElement('span');
-                        bling.textContent = "*"; // @@
-                        
-                        textNode.parentNode.insertBefore(bling, replacement);
-                    }
-                }
-            });
-
-            var updateStore = function(part) {
-                var chunk = part.subject;
-                setPartStyle(part, 'color: #888;');
-                var old = kb.any(chunk, ns.sioc('content')).value;
-                del = [ $rdf.st(chunk, ns.sioc('content'), old, padDoc)];
-                ins = [ $rdf.st(chunk, ns.sioc('content'), part.value, padDoc)];
-                
-                tabulator.sparql.update(del, ins, function(uri,ok,error_body){
-                    if (!ok) {
-                        // alert("clash " + error_body);
-                        console.log("patch FAILED '" + part.value + "' " + error_body);
-                        setPartStyle(part,'color: black;  background-color: #fdd;'); // failed
-                        part.state = 0;
-                        tabulator.sparql.requestDownstreamAction(padDoc, reloadAndSync);
-                    } else {
-                        setPartStyle(part); // synced
-                        // console.log("patch ok " + part.value);
-                        if (part.state === 2) {
-                            part.state = 1;  // pending: lock
-                            updateStore(part)
-                        } else {
-                            part.state = 0; // clear lock
-                        }
-                    }
-                });
-            }
-
-            part.addEventListener('input', function inputChangeListener(event) {
-                // console.log("input changed "+part.value);
-                setPartStyle(part, 'color: #888;'); // grey out - not synced
-                if (part.state) {
-                    part.state = 2; // please do again
-                    return;
-                } else {
-                    part.state = 1; // in progres
-                }
-                updateStore(part);
-
-            }); // listener
-            
-        } // addlisteners
-
- 
-        var newPartAfter = function(tr1, chunk, before) { // @@ take chunk and add listeners
-            text = kb.any(chunk, ns.sioc('content'));
-            text = text ? text.value : '';
-            var tr = dom.createElement('tr');
-            if (before) {
-                table.insertBefore(tr, tr1);
-            } else { // after
-                if (tr1 && tr1.nextSibling) {
-                    table.insertBefore(tr, tr1.nextSibling);
-                } else {
-                    table.appendChild(tr);
-                }
-            }
-            var part = tr.appendChild(dom.createElement('input'));
-            part.subject = chunk;
-            part.setAttribute('type', 'text')
-            setPartStyle(part, '');
-            part.value = text;
-            addListeners(part, chunk);
-            return part
-        };
-
-        
-               
-        var newChunk = function(ele, before) { // element of chunk being split
-            var kb = tabulator.kb, tr1;
-
-            var here, prev, next, indent = 0;
-            if (ele) {
-                if (ele.tagName.toLowerCase() !== 'input') {
-                    console.log('return pressed when current document is: ' + ele.tagName)
-                }
-                here = ele.subject;
-                indent = kb.any(here, PAD('indent'));
-                indent = indent? Number(indent.value)  : 0;
-                if (before) {
-                    prev =  kb.any(undefined, PAD('next'), here);
-                    next = here;
-                } else {
-                    prev = here;
-                    next =  kb.any(here, PAD('next'));
-                }
-                tr1 = ele.parentNode;
-            } else {
-                prev = subject
-                next = subject;
-                tr1 = undefined;
-            }
-
-            var chunk = tabulator.panes.utils.newThing(padDoc);
-            var part = newPartAfter(tr1, chunk, before);
-
-            del = [ $rdf.st(prev, PAD('next'), next, padDoc)];
-            ins = [ $rdf.st(prev, PAD('next'), chunk, padDoc),
-                    $rdf.st(chunk, PAD('next'), next, padDoc),
-                    $rdf.st(chunk, ns.dc('author'), me, padDoc),
-                    $rdf.st(chunk, ns.sioc('content'), '', padDoc)];
-            if (indent > 0) { // Do not inherit 
-                ins.push($rdf.st(chunk, PAD('indent'), indent, padDoc));
-            }
-
-            tabulator.sparql.update(del, ins, function(uri,ok,error_body){
-                if (!ok) {
-                    alert("Error writing fresh PAD data " + error_body)
-                } else {
-                    console.log("fresh chunk updated");
-                    setPartStyle(part);
-                }
-            });
-            
-            part.focus();
-           
-        }//
-
-
-
-        // Ensure that the display matches the current state of the
-        var sync = function() {
-            var first = kb.the(subject, PAD('next'));
-            if (kb.each(subject, PAD('next')).length !== 1) {
-                console.log("Pad: Inconsistent data - too many NEXT pointers: "
-                    + (kb.each(subject, PAD('next')).length));
-                //alert("Inconsitent data");
-                return
-            }
-            var last = kb.the(undefined, PAD('previous'), subject);
-            var chunk = first; //  = kb.the(subject, PAD('next'));
-            var row = table.firstChild;
-                
-                // First see which of the logical chunks have existing physical manifestations
-                
-            manif = [];
-            // Find which lines correspond to existing chunks
-            for (chunk = kb.the(subject, PAD('next'));  
-                !chunk.sameTerm(subject);
-                chunk = kb.the(chunk, PAD('next'))) {
-                for (var i=0; i< table.children.length; i++) {
-                    var tr = table.children[i];
-                    if (tr.firstChild.subject.sameTerm(chunk)) {
-                        manif[chunk.uri] = tr.firstChild;
-                    }
-                }
-            }
-            
-            // Remove any deleted lines
-            for (var i = table.children.length -1; i >= 0 ; i--) {
-                var row = table.children[i];
-                if (!manif[row.firstChild.subject.uri]) {
-                    table.removeChild(row);
-                }
-            }
-            // Insert any new lines
-            row = table.firstChild;
-            for (chunk = kb.the(subject, PAD('next'));  
-                !chunk.sameTerm(subject);
-                chunk = kb.the(chunk, PAD('next'))) {
-                var text = kb.any(chunk, ns.sioc('content')).value;
-                // superstitious -- don't mess with unchanged input fields
-                // which may be selected by the user
-                if (manif[chunk.uri]) { 
-                    var part = row.firstChild;
-                    if (text !== part.value) {
-                        part.value = text;
-                    }
-                    setPartStyle(part);
-                    row.firstChild.state = 0;
-                    row = row.nextSibling
-                } else {
-                    newPartAfter(row, chunk, true); // actually before
-                }
-            };
-        };
-        
-        var reloadAndSync = function() {
-            console.log("RELOADING TO SYNC ENTIRE FILE");
-            reloadDocument(padDoc, function(ok) {
-                console.log("SYNC ENTIRE FILE");
-                refreshTree(table);
-            });
-        }
-        
-        table.refresh = sync; // Catch downward propagating refresh events
-        table.reloadAndSync = reloadAndSync;
-        
-        if (exists) {
-            console.log("Existing pad.");
-            sync()
-        } else { // Make new pad
-            console.log("No pad exists - making new one.");
-
-            var insertables = [];
-            insertables.push($rdf.st(subject, ns.dc('author'), me, padDoc));
-            insertables.push($rdf.st(subject, ns.dc('created'), new Date(), padDoc));
-            insertables.push($rdf.st(subject, PAD('next'), subject, padDoc));
-            
-            tabulator.sparql.update([], insertables, function(uri,ok,error_body){
-                if (!ok) {
-                    complainIfBad(ok, error_body);
-                } else {
-                    console.log("Initial pad created");
-                    newChunk(); // Add a first chunck
-                    // getResults();
-                }
-            });
-        }
-        return table;
+    
     }
+
+
+
     
     /////////////////////////
 
    
-    var getDetails = function() {
-        console.log("getDetails()"); // Looking for blank screen hang-up
-        fetcher.nowOrWhenFetched(detailsDoc.uri, undefined, function(ok, body){
-            console.log("getDetails() ok? " + ok);
-            if (!ok) return complainIfBad(ok, body);
-            getResults();
-        });
-    };
-    
     var listenToIframe = function() {
         // Event listener for login (from child iframe)
         var eventMethod = window.addEventListener ? "addEventListener" : "attachEvent";
@@ -851,13 +417,13 @@ document.addEventListener('DOMContentLoaded', function() {
         
         whoAmI(); // Set me  even if on a plane
         
-        var padEle = (tabulator.panes.utils.notepad(dom, subject, { exists: exists }));
+        options.exists = exists;
+        padEle = (tabulator.panes.utils.notepad(dom, padDoc, subject, me, options));
         naviMain.appendChild(padEle);
         
         // Listen for chanes to the pad and update it
         var wssURI = getUpdatesVia(padDoc); // relative
 
-        //var sockURI = getChangesURI(padDoc, 'changes'); // Live updates 2
         if (!wssURI) {
             console.log("Server doies not support live updates thoughUpdates-Via :-(")
         } else {
@@ -902,15 +468,15 @@ document.addEventListener('DOMContentLoaded', function() {
             waitingForLogin = true; // hack
     };
     
-    var showBootstrap = function showBootstrap() {
+    var showBootstrap = function showBootstrap(noun) {
         var div = clearElement(naviMain);
         var na = div.appendChild(tabulator.panes.utils.newAppInstance(
-            dom, "Start a new poll in a workspace", initializeNewInstanceInWorkspace));
+            dom, "Start a new " + noun + " in a workspace", initializeNewInstanceInWorkspace));
         
         var hr = div.appendChild(dom.createElement('hr')); // @@
         
         var p = div.appendChild(dom.createElement('p'));
-        p.textContent = "Where would you like to store the data for the poll?  " +
+        p.textContent = "Where would you like to store the data for the " + noun + "?  " +
         "Give the URL of the directory where you would like the data stored.";
         var baseField = div.appendChild(dom.createElement('input'));
         baseField.setAttribute("type", "text");
@@ -921,7 +487,7 @@ document.addEventListener('DOMContentLoaded', function() {
         div.appendChild(dom.createElement('br')); // @@
         
         var button = div.appendChild(dom.createElement('button'));
-        button.textContent = "Start new poll at this URI";
+        button.textContent = "Start new " + noun + " at this URI";
         button.addEventListener('click', function(e){
             var newBase = baseField.value;
             if (newBase.slice(-1) !== '/') {
@@ -931,105 +497,9 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     } 
           
-    /////////////// The forms to configure the pad
-    
-    var showForms = function() {
-
-        var div = naviMain;
-        var wizard = true;
-        var currentSlide = 0;
-        var gotDoneButton = false;
-        if (wizard) {
-        
-            forms = [ form1, form2, form3 ];
-            slides = [];
-            var slide, currentSlide = 0;
-            for (var f=0; f<forms.length; f++) {
-                slide = dom.createElement('div');
-                tabulator.panes.utils.appendForm(document, slide, {}, subject, forms[f], detailsDoc, complainIfBad);
-                slides.push(slide);
-            }
-
-            var refresh = function() {
-                clearElement(naviMain).appendChild(slides[currentSlide]);
-                
-                if (currentSlide === 0) {
-                    b1.setAttribute('disabled', '');
-                } else {
-                    b1.removeAttribute('disabled');
-                }
-                if (currentSlide === slides.length - 1 ) {
-                    b2.setAttribute('disabled', '');
-                    if (!gotDoneButton) { // Only expose at last slide seen
-                        naviCenter.appendChild(doneButton); // could also check data shape
-                        gotDoneButton = true;
-                    }
-                } else {
-                    b2.removeAttribute('disabled');
-                }
-                
-            }
-            var b1 = clearElement(naviLeft).appendChild(dom.createElement('button'));
-            b1.textContent = "<- go back";
-            b1.addEventListener('click', function(e) {
-                if (currentSlide > 0) {
-                    currentSlide -= 1;
-                    refresh();
-                } 
-            }, false);
-
-            
-            var b2 = clearElement(naviRight).appendChild(dom.createElement('button'));
-            b2.textContent = "continue ->";
-            b2.addEventListener('click', function(e) {
-                if (currentSlide < slides.length - 1) {
-                    currentSlide += 1;
-                    refresh();
-                } 
-            }, false);
-
-            refresh();
-            
-        } else { // not wizard one big form
-            // @@@ create the initial config doc if not exist
-            var table = div.appendChild(dom.createElement('table'));
-            tabulator.panes.utils.appendForm(document, table, {}, subject, form1, detailsDoc, complainIfBad);
-            tabulator.panes.utils.appendForm(document, table, {}, subject, form2, detailsDoc, complainIfBad);
-            tabulator.panes.utils.appendForm(document, table, {}, subject, form3, detailsDoc, complainIfBad);
-            naviCenter.appendChild(doneButton); // could also check data shape
-           
-        }
-        // @@@  link config to results
-        
-        insertables = [];
-        insertables.push($rdf.st(subject, SCHED('availabilityOptions'), SCHED('YesNoMaybe'), detailsDoc));
-        insertables.push($rdf.st(subject, SCHED('ready'), new Date(), detailsDoc));
-        insertables.push($rdf.st(subject, SCHED('results'), padDoc, detailsDoc)); // @@ also link in results
-        
-
-
-
-        var doneButton = dom.createElement('button');
-        doneButton.textContent = "Done";
-        doneButton.addEventListener('click', function(e) {
-            if (kb.any(subject, SCHED('ready'))) { // already done
-                getResults();
-            } else {
-                tabulator.sparql.update([], insertables, function(uri,ok,error_body){
-                    if (!ok) {
-                        complainIfBad(ok, error_body);
-                    } else {
-                        getResults();
-                    }
-                });
-            }
-        }, false);
-        
-    } // showForms
-    
    
  
-    // Read or create empty results file
+    // Read or create empty data file
     
     var getResults = function () {
         var div = naviMain;
@@ -1049,16 +519,51 @@ document.addEventListener('DOMContentLoaded', function() {
                         };
                     });
                 } else { // Other error, not 404 -- do not try to overwite the file
-                    complainIfBad(ok, "FAILED to read results file: " + body)
+                    complainIfBad(ok, "FAILED to read results file: " + body);
                 }
             } else { // Happy read
                 clearElement(naviMain);
+                if (kb.holds(subject, ns.rdf('type'), ns.wf('TemplateInstance'))) {
+                    showBootstrap('pad');
+                }
                 showResults(true);
+                naviMiddle3.appendChild(newInstanceButton());
+                
             }
         });
     };
         
     ////////////////////////////////////////////// Body of App (on loaded lstner)
+
+
+
+    var appPathSegment = 'app-pad.timbl.com'; // how to allocate this string and connect to 
+        
+    var kb = tabulator.kb;
+    var fetcher = tabulator.sf;
+    var ns = tabulator.ns;
+    var dom = document;
+    var me;
+    var updater = new $rdf.sparqlUpdate(kb);
+    var waitingForLogin = false;
+
+    var PAD = $rdf.Namespace('http://www.w3.org/ns/pim/pad#');
+    
+    var uri = window.location.href;
+    var base = uri.slice(0, uri.lastIndexOf('/')+1);
+    var subject_uri = base  + 'pad.ttl#thisPad';
+    
+    window.document.title = "Pad";
+
+    var subject = kb.sym(subject_uri);
+    var thisInstance = subject;
+         
+    var padDoc = $rdf.sym(base + 'padd.ttl');
+    var padEle;
+    
+    var div = document.getElementById('pad');
+
+
     
     //  Build the DOM
     
@@ -1072,10 +577,19 @@ document.addEventListener('DOMContentLoaded', function() {
     
     var logInOutButton = null;
 
-    var naviTop = structure.appendChild(dom.createElement('tr'));
+    var naviTop = structure.appendChild(dom.createElement('tr')); // stuff
     var naviMain = naviTop.appendChild(dom.createElement('td'));
     naviMain.setAttribute('colspan', '3');
 
+    var naviMiddle = structure.appendChild(dom.createElement('tr')); // controls
+    var naviMiddle1 = naviMiddle.appendChild(dom.createElement('td'));
+    var naviMiddle2 = naviMiddle.appendChild(dom.createElement('td'));
+    var naviMiddle3 = naviMiddle.appendChild(dom.createElement('td'));
+    
+    var naviBottom = structure.appendChild(dom.createElement('tr')); // status etc
+    var statusArea = naviBottom.appendChild(dom.createElement('div')); 
+    
+    
     var naviMenu = structure.appendChild(dom.createElement('tr'));
     naviMenu.setAttribute('class', 'naviMenu');
 //    naviMenu.setAttribute('style', 'margin-top: 3em;');
@@ -1083,8 +597,13 @@ document.addEventListener('DOMContentLoaded', function() {
     var naviCenter = naviMenu.appendChild(dom.createElement('td'));
     var naviRight = naviMenu.appendChild(dom.createElement('td'));
     
+    var options = { statusArea: statusArea, timingArea: naviMiddle1 }
+    
+    if (base.indexOf('github.io') >= 0 ) {
+        showBootstrap('pad');
+    }
 
-    getDetails();
+    getResults();
 
 });
 
