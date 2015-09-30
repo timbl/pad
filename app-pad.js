@@ -542,7 +542,7 @@ document.addEventListener('DOMContentLoaded', function() {
     //  Build the DOM
     
     var structure = div.appendChild(dom.createElement('table')); // @@ make responsive style
-    structure.setAttribute('style', 'background-color: white; min-width: 90%; min-height: 13em;');
+    structure.setAttribute('style', 'background-color: white; min-width: 94%; margin-right:3% margin-left: 3%; min-height: 13em;');
     
     var naviLoginoutTR = structure.appendChild(dom.createElement('tr'));
     var naviLoginout1 = naviLoginoutTR.appendChild(dom.createElement('td'));
