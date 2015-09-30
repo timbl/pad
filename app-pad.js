@@ -426,39 +426,6 @@ document.addEventListener('DOMContentLoaded', function() {
         naviMain.appendChild(padEle);
         
         var initiated = tabulator.sparql.setRefreshHandler(padDoc, padEle.reloadAndSync);
-        /*
-        // Listen for chanes to the pad and update it
-        var wssURI = getUpdatesVia(padDoc); // relative
-
-        if (!wssURI) {
-            console.log("Server doies not support live updates thoughUpdates-Via :-(")
-        } else {
-            wssURI = $rdf.uri.join(wssURI, padDoc.uri); 
-            wssURI = wssURI.replace(/^http:/, 'ws:').replace(/^https:/, 'wss:');
-            console.log("Web socket URI " + wssURI);
-            
-            // From https://github.com/solid/solid-spec#live-updates
-            var socket = new WebSocket(wssURI);
-            socket.onopen = function() {
-                this.send('sub ' + padDoc.uri);
-            };
-            tabulator.sparql.clearUpstreamCount(padDoc); // count change which we initiate ourselves
-            socket.onmessage = function(msg) {
-                if (msg.data && msg.data.slice(0, 3) === 'pub') {
-                    if (padDoc.upstreamCount) {
-                        padDoc.upstreamCount -= 1;
-                        if (padDoc.upstreamCount >= 0) {
-                            console.log("just an echo");
-                            return; // Just an echo
-                         }
-                    }
-                    tabulator.sparql.clearUpstreamCount(padDoc);
-                    console.log("Assume a real downstream change");
-                    tabulator.sparql.requestDownstreamAction(padDoc, padEle.reloadAndSync);
-                }
-            };
-        }
-        */
     };
     
     var showSignon = function showSignon() {
@@ -575,7 +542,7 @@ document.addEventListener('DOMContentLoaded', function() {
     //  Build the DOM
     
     var structure = div.appendChild(dom.createElement('table')); // @@ make responsive style
-    structure.setAttribute('style', 'background-color: white; min-width: 40em; min-height: 13em;');
+    structure.setAttribute('style', 'background-color: white; min-width: 90%; min-height: 13em;');
     
     var naviLoginoutTR = structure.appendChild(dom.createElement('tr'));
     var naviLoginout1 = naviLoginoutTR.appendChild(dom.createElement('td'));
