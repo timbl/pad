@@ -238,9 +238,9 @@ document.addEventListener('DOMContentLoaded', function() {
         newInstance = kb.sym(newPadDoc.uri + '#thisPad');
         kb.add(newInstance, ns.rdf('type'), PAD('Notepad'), newPadDoc);
         
-        kb.add(newInstance, DC('created'), new Date(), newPadDoc);
+        kb.add(newInstance, ns.dc('created'), new Date(), newPadDoc);
         if (me) {
-            kb.add(newInstance, DC('author'), me, newPadDoc);
+            kb.add(newInstance, ns.dc('author'), me, newPadDoc);
         }
         kb.add(newInstance, PAD('next'), newInstance); // linked list empty
         
@@ -417,10 +417,16 @@ document.addEventListener('DOMContentLoaded', function() {
         
         whoAmI(); // Set me  even if on a plane
         
+        var title = kb.any(subject, ns.dc('title'))
+        if (title) {
+            window.document.title = title.value;
+        }
         options.exists = exists;
         padEle = (tabulator.panes.utils.notepad(dom, padDoc, subject, me, options));
         naviMain.appendChild(padEle);
         
+        var initiated = tabulator.sparql.setRefreshHandler(padDoc, padEle.reloadAndSync);
+        /*
         // Listen for chanes to the pad and update it
         var wssURI = getUpdatesVia(padDoc); // relative
 
@@ -436,7 +442,7 @@ document.addEventListener('DOMContentLoaded', function() {
             socket.onopen = function() {
                 this.send('sub ' + padDoc.uri);
             };
-            padDoc.upstreamCount = 0; // count change which we initiate ourselves
+            tabulator.sparql.clearUpstreamCount(padDoc); // count change which we initiate ourselves
             socket.onmessage = function(msg) {
                 if (msg.data && msg.data.slice(0, 3) === 'pub') {
                     if (padDoc.upstreamCount) {
@@ -446,12 +452,13 @@ document.addEventListener('DOMContentLoaded', function() {
                             return; // Just an echo
                          }
                     }
-                    padDoc.upstreamCount = 0;
+                    tabulator.sparql.clearUpstreamCount(padDoc);
                     console.log("Assume a real downstream change");
                     tabulator.sparql.requestDownstreamAction(padDoc, padEle.reloadAndSync);
                 }
             };
         }
+        */
     };
     
     var showSignon = function showSignon() {
@@ -553,7 +560,7 @@ document.addEventListener('DOMContentLoaded', function() {
     var base = uri.slice(0, uri.lastIndexOf('/')+1);
     var subject_uri = base  + 'pad.ttl#thisPad';
     
-    window.document.title = "Pad";
+    //window.document.title = "Pad";
 
     var subject = kb.sym(subject_uri);
     var thisInstance = subject;
