@@ -242,7 +242,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (me) {
             kb.add(newInstance, ns.dc('author'), me, newPadDoc);
         }
-        kb.add(newInstance, PAD('next'), newInstance); // linked list empty
+        kb.add(newInstance, PAD('next'), newInstance, newPadDoc); // linked list empty
         
         // Keep a paper trail   @@ Revisit when we have non-public ones @@ Privacy
         kb.add(newInstance, tabulator.ns.space('inspiration'), thisInstance, padDoc);            
@@ -299,7 +299,7 @@ document.addEventListener('DOMContentLoaded', function() {
         
             
         agenda.push(function() {
-            setACL(newpadDoc.uri, true, function(ok, body) {
+            setACL(newPadDoc.uri, true, function(ok, body) {
                 complainIfBad(ok, "Failed to set Read-Write ACL on pad data file: " + body);
                 if (ok) agenda.shift()();
             })
