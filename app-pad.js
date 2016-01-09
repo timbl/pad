@@ -495,7 +495,7 @@ document.addEventListener('DOMContentLoaded', function() {
  
     // Read or create empty data file
     
-    var getResults = function () {
+    var loadPadData = function () {
         var div = naviMain;
         fetcher.nowOrWhenFetched(padDoc.uri, undefined, function(ok, body, xhr){
             if (!ok) {   
@@ -596,11 +596,11 @@ document.addEventListener('DOMContentLoaded', function() {
     
     var options = { statusArea: statusArea, timingArea: naviMiddle1 }
     
-    if (base.indexOf('github.io') >= 0 ) {
+    if (base.indexOf('github.io') >= 0 ) {// @@ More generically looking for read-only
         showBootstrap('pad', naviSpawn);
+    } else {
+	loadPadData();
     }
-
-    getResults();
 
 });
 
