@@ -518,7 +518,7 @@ document.addEventListener('DOMContentLoaded', function() {
             } else { // Happy read
                 clearElement(naviMain);
                 if (kb.holds(subject, ns.rdf('type'), ns.wf('TemplateInstance'))) {
-                    showBootstrap('pad');
+                    showBootstrap('pad', naviMain);
                 }
                 showResults(true);
                 naviMiddle3.appendChild(newInstanceButton());
