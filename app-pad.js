@@ -597,7 +597,7 @@ document.addEventListener('DOMContentLoaded', function() {
     var options = { statusArea: statusArea, timingArea: naviMiddle1 }
     
     if (base.indexOf('github.io') >= 0 ) {
-        showBootstrap('pad');
+        showBootstrap('pad', naviSpawn);
     }
 
     getResults();
