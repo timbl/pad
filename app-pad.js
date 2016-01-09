@@ -194,22 +194,69 @@ document.addEventListener('DOMContentLoaded', function() {
     //
     // Viral growth path: user of app decides to make another instance
     //
+    //
 
     var newInstanceButton = function() {
+        var button = div.appendChild(dom.createElement('button'));
+        button.textContent = "Start another pad";
+        button.addEventListener('click', function() {
+            return showBootstrap(subject, spawnArea, "pad")
+        })
+        return button;
+    };
+
+
+/*
+    var newInstanceButton = function() {
         return tabulator.panes.utils.newAppInstance(dom, "Start another pad",
-                    initializeNewInstanceInWorkspace);
+                    startAnotherPad);
     }; // newInstanceButton
 
+    var startAnotherPad = function() {
+        return showBootstrap(subject, spawnArea, "pad")
+    }
+*/
+    // Option of either using the workspace system or just typing in a URI
+    //
+    var showBootstrap = function showBootstrap(thisInstance, container, noun) {
+        var div = clearElement(container);
+        var na = div.appendChild(tabulator.panes.utils.newAppInstance(
+            dom, "Start a new " + noun + " in a workspace", initializeNewInstanceInWorkspace));
+        
+        var hr = div.appendChild(dom.createElement('hr')); // @@
+        
+        var p = div.appendChild(dom.createElement('p'));
+        p.textContent = "Where would you like to store the data for the " + noun + "?  " +
+        "Give the URL of the directory where you would like the data stored.";
+        var baseField = div.appendChild(dom.createElement('input'));
+        baseField.setAttribute("type", "text");
+        baseField.size = 80; // really a string
+        baseField.label = "base URL";
+        baseField.autocomplete = "on";
 
+        div.appendChild(dom.createElement('br')); // @@
+        
+        var button = div.appendChild(dom.createElement('button'));
+        button.textContent = "Start new " + noun + " at this URI";
+        button.addEventListener('click', function(e){
+            var newBase = baseField.value;
+            if (newBase.slice(-1) !== '/') {
+                newBase += '/';
+            }
+            initializeNewInstanceAtBase(thisInstance, newBase);
+        });
+    } 
+          
 
-
-    /////////////////////////  Create new document files for new instance of app
+    /////////  Create new document files for new instance of app
 
     var initializeNewInstanceInWorkspace = function(ws) {
-        var newBase = kb.any(ws, ns.space('uriPrefix')).value;
+        var newBase = kb.any(ws, ns.space('uriPrefix'));
         if (!newBase) {
             newBase = ws.uri.split('#')[0];
-        }
+        } else {
+	    newBase = newBase.value;
+	}
         if (newBase.slice(-1) !== '/') {
             $rdf.log.error(appPathSegment + ": No / at end of uriPrefix " + newBase ); // @@ paramater?
             newBase = newBase + '/';
@@ -319,13 +366,15 @@ document.addEventListener('DOMContentLoaded', function() {
         // Created new data files.
     }
 
+
+
     ///////////////  Update on incoming changes
     
 
 
 
     // Reload resorce then sync
-    
+/*    
     var reloadAndSync = function() {
         var doc = padDoc
         var saved = tabulator.kb.statementsMatching(undefined, undefined, undefined, doc);
@@ -369,7 +418,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-
+*/
 
     // Manage participation in this session
     //
@@ -442,35 +491,6 @@ document.addEventListener('DOMContentLoaded', function() {
             waitingForLogin = true; // hack
     };
     
-    var showBootstrap = function showBootstrap(noun) {
-        var div = clearElement(naviMain);
-        var na = div.appendChild(tabulator.panes.utils.newAppInstance(
-            dom, "Start a new " + noun + " in a workspace", initializeNewInstanceInWorkspace));
-        
-        var hr = div.appendChild(dom.createElement('hr')); // @@
-        
-        var p = div.appendChild(dom.createElement('p'));
-        p.textContent = "Where would you like to store the data for the " + noun + "?  " +
-        "Give the URL of the directory where you would like the data stored.";
-        var baseField = div.appendChild(dom.createElement('input'));
-        baseField.setAttribute("type", "text");
-        baseField.size = 80; // really a string
-        baseField.label = "base URL";
-        baseField.autocomplete = "on";
-
-        div.appendChild(dom.createElement('br')); // @@
-        
-        var button = div.appendChild(dom.createElement('button'));
-        button.textContent = "Start new " + noun + " at this URI";
-        button.addEventListener('click', function(e){
-            var newBase = baseField.value;
-            if (newBase.slice(-1) !== '/') {
-                newBase += '/';
-            }
-            initializeNewInstanceAtBase(thisInstance, newBase);
-        });
-    } 
-          
    
  
     // Read or create empty data file
@@ -560,8 +580,11 @@ document.addEventListener('DOMContentLoaded', function() {
     var naviMiddle2 = naviMiddle.appendChild(dom.createElement('td'));
     var naviMiddle3 = naviMiddle.appendChild(dom.createElement('td'));
     
-    var naviBottom = structure.appendChild(dom.createElement('tr')); // status etc
-    var statusArea = naviBottom.appendChild(dom.createElement('div')); 
+    var naviStatus = structure.appendChild(dom.createElement('tr')); // status etc
+    var statusArea = naviStatus.appendChild(dom.createElement('div')); 
+    
+    var naviSpawn = structure.appendChild(dom.createElement('tr')); // create new
+    var spawnArea = naviSpawn.appendChild(dom.createElement('div'));
     
     
     var naviMenu = structure.appendChild(dom.createElement('tr'));
