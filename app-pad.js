@@ -265,45 +265,20 @@ document.addEventListener('DOMContentLoaded', function() {
         var kb = tabulator.kb;
         
         
-        newPadDoc = kb.sym(newBase + 'pad.ttl');
-        newIndexDoc = kb.sym(newBase + 'index.html');
+        var newPadDoc = kb.sym(newBase + 'pad.ttl');
+        var newIndexDoc = kb.sym(newBase + 'index.html');
 
         toBeCopied = [
             { local: 'index.html', contentType: 'text/html'} 
         ];
         
         newInstance = kb.sym(newPadDoc.uri + '#thisPad');
-        kb.add(newInstance, ns.rdf('type'), PAD('Notepad'), newPadDoc);
-        
-        kb.add(newInstance, ns.dc('created'), new Date(), newPadDoc);
-        if (me) {
-            kb.add(newInstance, ns.dc('author'), me, newPadDoc);
-        }
-        kb.add(newInstance, PAD('next'), newInstance, newPadDoc); // linked list empty
-        
-        // Keep a paper trail   @@ Revisit when we have non-public ones @@ Privacy
-        kb.add(newInstance, tabulator.ns.space('inspiration'), thisInstance, padDoc);            
-        kb.add(newInstance, tabulator.ns.space('inspiration'), thisInstance, newPadDoc);
+	
         
         // $rdf.log.debug("\n Ready to put " + kb.statementsMatching(undefined, undefined, undefined, there)); //@@
 
 
         agenda = [];
-        agenda.push(function createNewPadDataFile(){
-            updater.put(
-                newPadDoc,
-                kb.statementsMatching(undefined, undefined, undefined, newPadDoc),
-                'text/turtle',
-                function(uri2, ok, message) {
-                    if (ok) {
-                        agenda.shift()();
-                    } else {
-                        complainIfBad(ok, "FAILED to save new notepad at: "+ there.uri +' : ' + message);
-                        console.log("FAILED to save new notepad at: "+ there.uri +' : ' + message);
-                    };
-                }
-            );
-        });
 
         var f, fi, fn; //   @@ This needs some form of visible progress bar
         for (f=0; f < toBeCopied.length; f++) {
@@ -334,7 +309,50 @@ document.addEventListener('DOMContentLoaded', function() {
             fun(item);
         };
         
-            
+	if (!me) {
+	    agenda.push(function(){
+		console.log("Waiting to dind out id user users to access " + newIndexDoc)
+		tabulator.panes.utils.checkUser(newIndexDoc, function(webid){
+		    me = kb.sym(webid);
+		    conole.log("Got user id: "+ me);
+		    agenda.shift()();
+		});
+	    });
+	};
+	
+	//   me  is now defined
+	
+        agenda.push(function createNewPadDataFile(){
+
+	    kb.add(newInstance, ns.rdf('type'), PAD('Notepad'), newPadDoc);
+	    
+	    kb.add(newInstance, ns.dc('created'), new Date(), newPadDoc);
+	    if (me) {
+		kb.add(newInstance, ns.dc('author'), me, newPadDoc);
+	    }
+	    kb.add(newInstance, PAD('next'), newInstance, newPadDoc); // linked list empty
+	    
+	    // Keep a paper trail   @@ Revisit when we have non-public ones @@ Privacy
+	    kb.add(newInstance, tabulator.ns.space('inspiration'), thisInstance, padDoc);            
+	    kb.add(newInstance, tabulator.ns.space('inspiration'), thisInstance, newPadDoc);
+
+            updater.put(
+                newPadDoc,
+                kb.statementsMatching(undefined, undefined, undefined, newPadDoc),
+                'text/turtle',
+                function(uri2, ok, message) {
+                    if (ok) {
+                        agenda.shift()();
+                    } else {
+                        complainIfBad(ok, "FAILED to save new notepad at: "+ there.uri +' : ' + message);
+                        console.log("FAILED to save new notepad at: "+ there.uri +' : ' + message);
+                    };
+                }
+            );
+        });
+
+
+	
         agenda.push(function() {
             setACL(newPadDoc.uri, true, function(ok, body) {
                 complainIfBad(ok, "Failed to set Read-Write ACL on pad data file: " + body);
@@ -360,55 +378,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
     ///////////////  Update on incoming changes
     
-
-
-
-    // Reload resorce then sync
-/*    
-    var reloadAndSync = function() {
-        var doc = padDoc
-        var saved = tabulator.kb.statementsMatching(undefined, undefined, undefined, doc);
-        console.log("RELOADING TO SYNC ENTIRE FILE");
-        console.log("Unloading " + saved.length
-            + " out of " + tabulator.kb.statements.length)
-        tabulator.fetcher.unload(doc);
-        var startTime = Date.now();
-        // force sets no-cache and 
-        tabulator.fetcher.nowOrWhenFetched(doc.uri, {force: true, noMeta: true}, function(ok, body){
-            if (!ok) {
-                console.log("ERROR reloading data! -- restoring original " + saved.length + " statements. Error: " + body);
-                kb.add(saved);
-                //callback(false, "Error reloading pad data: " + body)
-            } else {
-                console.log("Reloaded " + tabulator.kb.statementsMatching(undefined, undefined, undefined, doc).length
-                    + " out of " + tabulator.kb.statements.length)
-                elapsedTime_ms = Date.now() = startTime;
-                console.log("fetch took "+elapsedTime_ms+"ms. Now sync the DOM.");
-                if (!padDoc.reloadTime_total) padDoc.reloadTime_total = 0;
-                if (!padDoc.reloadTime_count) padDoc.reloadTime_count = 0;
-                padDoc.reloadTime_total += elapsedTime_ms;
-                reloadTime_count += 1;
-                refreshTree(padEle);
-
-            };
-        });
-    };
-
-
-
-    // Refresh the DOM tree
-  
-    var refreshTree = function(root) {
-        if (root.refresh) {
-            root.refresh();
-            return;
-        }
-        for (var i=0; i < root.children.length; i++) {
-            refreshTree(root.children[i]);
-        }
-    }
-
-*/
 
     // Manage participation in this session
     //
