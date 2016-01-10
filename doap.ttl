@@ -1,0 +1,21 @@
+
+@prefix app: <http://www.w3.org/ns/solid/app#>.
+@prefix s: <http://www.w3.org/2000/01/rdf-schema#>.
+@prefix doap: <http://usefulinc.com/ns/doap#>.
+
+<#app>
+    a app:Application, doap:Project ;
+
+    doap:developer  <https://www.w3.org/People/Berners-Lee/card#i>;
+
+    doap:description """Pad is a collaborative edit tool which allows multiple users
+to share a common notepad.  Lines can be indented, our outdented to form simple headings.
+Lines written by different users are colored differemtly.  Pad is a SoLiD app, so will run any any SoLiD data store.
+""";
+
+    s:comment	    "Pad: shared collaborate editing of a simple text document. A SoLiD App." ;
+    doap:homepage    <https://timbl.github.io/pad> ;
+    <http://www.w3.org/ns/solid/app#icon> <https://timbl.github.io/pad/images/ColorOn.png> ;
+    doap:name "Pad" .
+
+
