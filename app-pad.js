@@ -306,7 +306,8 @@ document.addEventListener('DOMContentLoaded', function() {
 				})
 			    }
 			    if (!me) {
-				tabulator.panes.utils.checkUser(newIndexDoc, function(webid){
+				console.log("Waiting to dind out id user users to access " + xhr.resource)
+				tabulator.panes.utils.checkUser(xhr.resource, function(webid){
 				    me = kb.sym(webid);
 				    conole.log("Got user id: "+ me);
 				    setThatACL();
@@ -320,7 +321,7 @@ document.addEventListener('DOMContentLoaded', function() {
             };
             fun(item);
         };
-        
+        /*
 	if (!me) {
 	    agenda.push(function(){
 		console.log("Waiting to dind out id user users to access " + newIndexDoc)
@@ -331,7 +332,7 @@ document.addEventListener('DOMContentLoaded', function() {
 		});
 	    });
 	};
-	
+	*/
 	//   me  is now defined
 	
         agenda.push(function createNewPadDataFile(){
