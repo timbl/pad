@@ -294,14 +294,26 @@ document.addEventListener('DOMContentLoaded', function() {
                         } else {
                             xhr.resource = kb.sym(newURI);
                             kb.fetcher.parseLinkHeader(xhr, kb.bnode()); // Dont save the whole headers, just the links
-                            setACL(newURI, false, function(ok, message){
-                                if (!ok) {
-                                    complainIfBad(ok, "FAILED to set ACL "+ newURI +' : ' + message);
-                                    console.log("FAILED to set ACL "+ newURI +' : ' + message);
-                                } else {
-                                    agenda.shift()(); // beware too much nesting
-                                }
-                            })
+			    
+			    var setThatACL = function() {
+				setACL(newURI, false, function(ok, message){
+				    if (!ok) {
+					complainIfBad(ok, "FAILED to set ACL "+ newURI +' : ' + message);
+					console.log("FAILED to set ACL "+ newURI +' : ' + message);
+				    } else {
+					agenda.shift()(); // beware too much nesting
+				    }
+				})
+			    }
+			    if (!me) {
+				tabulator.panes.utils.checkUser(newIndexDoc, function(webid){
+				    me = kb.sym(webid);
+				    conole.log("Got user id: "+ me);
+				    setThatACL();
+				});
+			    } else {
+				setThatACL();
+			    }
                         }
                     });
                 });
