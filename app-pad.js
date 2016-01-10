@@ -206,16 +206,6 @@ document.addEventListener('DOMContentLoaded', function() {
     };
 
 
-/*
-    var newInstanceButton = function() {
-        return tabulator.panes.utils.newAppInstance(dom, "Start another pad",
-                    startAnotherPad);
-    }; // newInstanceButton
-
-    var startAnotherPad = function() {
-        return showBootstrap(subject, spawnArea, "pad")
-    }
-*/
     // Option of either using the workspace system or just typing in a URI
     //
     var showBootstrap = function showBootstrap(thisInstance, container, noun) {
@@ -518,7 +508,7 @@ document.addEventListener('DOMContentLoaded', function() {
             } else { // Happy read
                 clearElement(naviMain);
                 if (kb.holds(subject, ns.rdf('type'), ns.wf('TemplateInstance'))) {
-                    showBootstrap('pad', naviMain);
+                    showBootstrap(subject, naviMain, 'pad');
                 }
                 showResults(true);
                 naviMiddle3.appendChild(newInstanceButton());
@@ -597,7 +587,7 @@ document.addEventListener('DOMContentLoaded', function() {
     var options = { statusArea: statusArea, timingArea: naviMiddle1 }
     
     if (base.indexOf('github.io') >= 0 ) {// @@ More generically looking for read-only
-        showBootstrap('pad', naviSpawn);
+        showBootstrap(subject, spawnArea, 'pad');
     } else {
 	loadPadData();
     }
