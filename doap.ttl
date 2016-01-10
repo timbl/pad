@@ -2,6 +2,9 @@
 @prefix app: <http://www.w3.org/ns/solid/app#>.
 @prefix s: <http://www.w3.org/2000/01/rdf-schema#>.
 @prefix doap: <http://usefulinc.com/ns/doap#>.
+@prefix foaf: <http://xmlns.com/foaf/0.1/>.
+
+<> foaf:topic <#app>.
 
 <#app>
     a app:Application, doap:Project ;
@@ -15,7 +18,7 @@ Lines written by different users are colored differemtly.  Pad is a SoLiD app, s
 
     s:comment	    "Pad: shared collaborate editing of a simple text document. A SoLiD App." ;
     doap:homepage    <https://timbl.github.io/pad> ;
-    <http://www.w3.org/ns/solid/app#icon> <https://timbl.github.io/pad/images/ColourOn.png> ;
+    foaf:image  <https://timbl.github.io/pad/images/ColourOn.png> ;
     doap:name "Pad" .
 
 
