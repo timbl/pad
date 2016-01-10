@@ -309,7 +309,7 @@ document.addEventListener('DOMContentLoaded', function() {
 				console.log("Waiting to dind out id user users to access " + xhr.resource)
 				tabulator.panes.utils.checkUser(xhr.resource, function(webid){
 				    me = kb.sym(webid);
-				    conole.log("Got user id: "+ me);
+				    console.log("Got user id: "+ me);
 				    setThatACL();
 				});
 			    } else {
