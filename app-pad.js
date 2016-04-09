@@ -1,4 +1,4 @@
-// Notepad app 
+// Notepad app
 //
 // This is or was part of https://github.com/timbl/pad
 //
@@ -14,22 +14,22 @@
 document.addEventListener('DOMContentLoaded', function() {
 
 
-    
+
     // Utility functions
-    
+
     var complainIfBad = function(ok, message) {
         if (!ok) {
             div.appendChild(tabulator.panes.utils.errorMessageBlock(dom, message, 'pink'));
         }
     };
-    
+
     var clearElement = function(ele) {
         while (ele.firstChild) {
             ele.removeChild(ele.firstChild);
         }
         return ele;
     }
-    
+
     var webOperation = function(method, uri, options, callback) {
         var xhr = $rdf.Util.XMLHTTPFactory();
         xhr.onreadystatechange = function (){
@@ -44,7 +44,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         xhr.send(options.data ? options.data : undefined);
     };
-    
+
     var webCopy = function(here, there, content_type, callback) {
         webOperation('GET', here,  {}, function(uri, ok, body, xhr) {
             if (ok) {
@@ -54,48 +54,13 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     };
-    ////////////////////////////   Subscription
-    
-    
-    //  for all Link: uuu; rel=rrr  --->  { rrr: uuu }
-    var linkRels = function(doc) {
-        var links = {}; // map relationship to uri
-        var linkHeaders = tabulator.fetcher.getHeader(doc, 'link');
-        if (!linkHeaders) return null;
-        linkHeaders.map(function(headerLine){
-            headerLine.split(',').map(function(headerValue) {
-                var arg = headerValue.trim().split(';');
-                var uri = arg[0];
-                arg.slice(1).map(function(a){
-                    var key = a.split('=')[0].trim();
-                    var val = a.split('=')[1].trim().replace(/["']/g, ''); // '"
-                    if (key ==='rel') {
-                        uri = uri.trim();
-                        if (uri.slice(0,1) === '<') { // strip < >
-                            uri = uri.slice(1, uri.length-1)
-                        }
-                        links[val] = uri;
-                    }
-                });
-            });
-        });
-        return links;
-    };
 
-    //  for all Link: uuu; rel=rrr  --->  { rrr: uuu }
-    var getUpdatesVia = function(doc) {
-        var linkHeaders = tabulator.fetcher.getHeader(doc, 'updates-via');
-        if (!linkHeaders) return null;
-        return linkHeaders[0].trim();
-    };
-
-    
     //////////////////////// Accesss control
 
 
     // Two variations of ACL for this app, public read and public read/write
     // In all cases owner has read write control
-    
+
     var genACLtext = function(docURI, aclURI, allWrite) {
         var g = $rdf.graph(), auth = $rdf.Namespace('http://www.w3.org/ns/auth/acl#');
         var a = g.sym(aclURI + '#a1'), acl = g.sym(aclURI), doc = g.sym(docURI);
@@ -105,7 +70,7 @@ document.addEventListener('DOMContentLoaded', function() {
         g.add(a, auth('mode'), auth('Read'), acl);
         g.add(a, auth('mode'), auth('Write'), acl);
         g.add(a, auth('mode'), auth('Control'), acl);
-        
+
         a = g.sym(aclURI + '#a2');
         g.add(a, tabulator.ns.rdf('type'), auth('Authorization'), acl);
         g.add(a, auth('accessTo'), doc, acl)
@@ -116,15 +81,15 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         return $rdf.serialize(acl, g, aclURI, 'text/turtle');
     }
-    
+
     var setACL = function(docURI, allWrite, callback) {
         var aclDoc = kb.any(kb.sym(docURI),
             kb.sym('http://www.iana.org/assignments/link-relations/acl')); // @@ check that this get set by web.js
         if (aclDoc) { // Great we already know where it is
             var aclText = genACLtext(docURI, aclDoc.uri, allWrite);
-            webOperation('PUT', aclDoc.uri, { data: aclText, contentType: 'text/turtle'}, callback);        
+            webOperation('PUT', aclDoc.uri, { data: aclText, contentType: 'text/turtle'}, callback);
         } else {
-        
+
             fetcher.nowOrWhenFetched(docURI, undefined, function(ok, body){
                 if (!ok) return callback(ok, "Gettting headers for ACL: " + body);
                 var aclDoc = kb.any(kb.sym(docURI),
@@ -139,10 +104,10 @@ document.addEventListener('DOMContentLoaded', function() {
             })
         }
     };
-              
+
 
     ////////////////////////////////////// Getting logged in with a WebId
-    
+
     var setUser = function(webid) {
         if (webid) {
             tabulator.preferences.set('me', webid);
@@ -154,8 +119,8 @@ document.addEventListener('DOMContentLoaded', function() {
             console.log("(SetUser: Logged out)")
             me = null;
         }
-        if (logInOutButton) { 
-            logInOutButton.refresh();  
+        if (logInOutButton) {
+            logInOutButton.refresh();
         }
         if (webid && waitingForLogin) {
             waitingForLogin = false;
@@ -170,15 +135,15 @@ document.addEventListener('DOMContentLoaded', function() {
         var me_uri = tabulator.preferences.get('me');
         me = me_uri? kb.sym(me_uri) : null;
         tabulator.panes.utils.checkUser(padDoc, setUser);
-            
+
         if (!tabulator.preferences.get('me')) {
             console.log("(You do not have your Web Id set. Sign in or sign up to make changes.)");
 
             if (tabulator.mode == 'webapp' && typeof document !== 'undefined' &&
                 document.location &&  ('' + document.location).slice(0,16) === 'http://localhost') {
-             
+
                 me = kb.any(subject, tabulator.ns.dc('author')); // when testing on plane with no webid
-                console.log("Assuming user is " + me)   
+                console.log("Assuming user is " + me)
             }
 
         } else {
@@ -212,9 +177,9 @@ document.addEventListener('DOMContentLoaded', function() {
         var div = clearElement(container);
         var na = div.appendChild(tabulator.panes.utils.newAppInstance(
             dom, "Start a new " + noun + " in a workspace", initializeNewInstanceInWorkspace));
-        
+
         var hr = div.appendChild(dom.createElement('hr')); // @@
-        
+
         var p = div.appendChild(dom.createElement('p'));
         p.textContent = "Where would you like to store the data for the " + noun + "?  " +
         "Give the URL of the directory where you would like the data stored.";
@@ -225,7 +190,7 @@ document.addEventListener('DOMContentLoaded', function() {
         baseField.autocomplete = "on";
 
         div.appendChild(dom.createElement('br')); // @@
-        
+
         var button = div.appendChild(dom.createElement('button'));
         button.textContent = "Start new " + noun + " at this URI";
         button.addEventListener('click', function(e){
@@ -235,8 +200,8 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             initializeNewInstanceAtBase(thisInstance, newBase);
         });
-    } 
-          
+    }
+
 
     /////////  Create new document files for new instance of app
 
@@ -252,8 +217,8 @@ document.addEventListener('DOMContentLoaded', function() {
             newBase = newBase + '/';
         }
         var now = new Date();
-        newBase += appPathSegment + '/id'+ now.getTime() + '/'; // unique id 
-        
+        newBase += appPathSegment + '/id'+ now.getTime() + '/'; // unique id
+
         initializeNewInstanceAtBase(thisInstance, newBase);
     }
 
@@ -263,18 +228,18 @@ document.addEventListener('DOMContentLoaded', function() {
 
         var sp = tabulator.ns.space;
         var kb = tabulator.kb;
-        
-        
+
+
         var newPadDoc = kb.sym(newBase + 'pad.ttl');
         var newIndexDoc = kb.sym(newBase + 'index.html');
 
         toBeCopied = [
-            { local: 'index.html', contentType: 'text/html'} 
+            { local: 'index.html', contentType: 'text/html'}
         ];
-        
+
         newInstance = kb.sym(newPadDoc.uri + '#thisPad');
-	
-        
+
+
         // $rdf.log.debug("\n Ready to put " + kb.statementsMatching(undefined, undefined, undefined, there)); //@@
 
 
@@ -294,7 +259,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         } else {
                             xhr.resource = kb.sym(newURI);
                             kb.fetcher.parseLinkHeader(xhr, kb.bnode()); // Dont save the whole headers, just the links
-			    
+
 			    var setThatACL = function() {
 				setACL(newURI, false, function(ok, message){
 				    if (!ok) {
@@ -306,7 +271,7 @@ document.addEventListener('DOMContentLoaded', function() {
 				})
 			    }
 			    if (!me) {
-				console.log("Waiting to dind out id user users to access " + xhr.resource)
+				console.log("Waiting to find out id user users to access " + xhr.resource)
 				tabulator.panes.utils.checkUser(xhr.resource, function(webid){
 				    me = kb.sym(webid);
 				    console.log("Got user id: "+ me);
@@ -334,19 +299,19 @@ document.addEventListener('DOMContentLoaded', function() {
 	};
 	*/
 	//   me  is now defined
-	
+
         agenda.push(function createNewPadDataFile(){
 
 	    kb.add(newInstance, ns.rdf('type'), PAD('Notepad'), newPadDoc);
-	    
+
 	    kb.add(newInstance, ns.dc('created'), new Date(), newPadDoc);
 	    if (me) {
 		kb.add(newInstance, ns.dc('author'), me, newPadDoc);
 	    }
 	    kb.add(newInstance, PAD('next'), newInstance, newPadDoc); // linked list empty
-	    
+
 	    // Keep a paper trail   @@ Revisit when we have non-public ones @@ Privacy
-	    kb.add(newInstance, tabulator.ns.space('inspiration'), thisInstance, padDoc);            
+	    kb.add(newInstance, tabulator.ns.space('inspiration'), thisInstance, padDoc);
 	    kb.add(newInstance, tabulator.ns.space('inspiration'), thisInstance, newPadDoc);
 
             updater.put(
@@ -365,7 +330,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
 
 
-	
+
         agenda.push(function() {
             setACL(newPadDoc.uri, true, function(ok, body) {
                 complainIfBad(ok, "Failed to set Read-Write ACL on pad data file: " + body);
@@ -375,22 +340,22 @@ document.addEventListener('DOMContentLoaded', function() {
 
 
         agenda.push(function(){  // give the user links to the new app
-        
+
             var p = div.appendChild(dom.createElement('p'));
-            p.setAttribute('style', 'font-size: 140%;') 
-            p.innerHTML = 
+            p.setAttribute('style', 'font-size: 140%;')
+            p.innerHTML =
                 "Your <a href='" + newIndexDoc.uri + "'><b>new notepad</b></a> is ready. "+
                 "<br/><br/><a href='" + newIndexDoc.uri + "'>Go to new pad</a>";
             });
-        
-        agenda.shift()();        
+
+        agenda.shift()();
         // Created new data files.
     }
 
 
 
     ///////////////  Update on incoming changes
-    
+
 
     // Manage participation in this session
     //
@@ -404,15 +369,15 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!parps.length) {
             participation = tabulator.panes.utils.newThing(padDoc);
         }
-    
+
     }
 
 
 
-    
+
     /////////////////////////
 
-   
+
     var listenToIframe = function() {
         // Event listener for login (from child iframe)
         var eventMethod = window.addEventListener ? "addEventListener" : "attachEvent";
@@ -430,14 +395,14 @@ document.addEventListener('DOMContentLoaded', function() {
                 setUser(user);
             }
           }
-        },false);    
+        },false);
     }
-    
+
     var showResults = function(exists) {
         console.log("showResults()");
-        
+
         whoAmI(); // Set me  even if on a plane
-        
+
         var title = kb.any(subject, ns.dc('title'))
         if (title) {
             window.document.title = title.value;
@@ -445,10 +410,10 @@ document.addEventListener('DOMContentLoaded', function() {
         options.exists = exists;
         padEle = (tabulator.panes.utils.notepad(dom, padDoc, subject, me, options));
         naviMain.appendChild(padEle);
-        
-        var initiated = tabulator.sparql.setRefreshHandler(padDoc, padEle.reloadAndSync);
+
+        var initiated = updater.setRefreshHandler(padDoc, padEle.reloadAndSync);
     };
-    
+
     var showSignon = function showSignon() {
         var d = clearElement(naviMain);
         // var d = div.appendChild(dom.createElement('div'));
@@ -462,15 +427,15 @@ document.addEventListener('DOMContentLoaded', function() {
             listenToIframe();
             waitingForLogin = true; // hack
     };
-    
-   
- 
+
+
+
     // Read or create empty data file
-    
+
     var loadPadData = function () {
         var div = naviMain;
         fetcher.nowOrWhenFetched(padDoc.uri, undefined, function(ok, body, xhr){
-            if (!ok) {   
+            if (!ok) {
                 if (0 + xhr.status === 404) { ///  Check explictly for 404 error
                     console.log("Initializing results file " + padDoc)
                     updater.put(padDoc, [], 'text/turtle', function(uri2, ok, message, xhr) {
@@ -494,53 +459,53 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
                 showResults(true);
                 naviMiddle3.appendChild(newInstanceButton());
-                
+
             }
         });
     };
-        
+
     ////////////////////////////////////////////// Body of App (on loaded lstner)
 
 
 
-    var appPathSegment = 'app-pad.timbl.com'; // how to allocate this string and connect to 
-        
+    var appPathSegment = 'app-pad.timbl.com'; // how to allocate this string and connect to
+
     var kb = tabulator.kb;
     var fetcher = tabulator.sf;
     var ns = tabulator.ns;
     var dom = document;
     var me;
-    var updater = new $rdf.sparqlUpdate(kb);
+    var updater = tabulator.updater || new $rdf.UpdateManager(kb);
     var waitingForLogin = false;
 
     var PAD = $rdf.Namespace('http://www.w3.org/ns/pim/pad#');
-    
+
     var uri = window.location.href;
     var base = uri.slice(0, uri.lastIndexOf('/')+1);
     var subject_uri = base  + 'pad.ttl#thisPad';
-    
+
     //window.document.title = "Pad";
 
     var subject = kb.sym(subject_uri);
     var thisInstance = subject;
-         
+
     var padDoc = $rdf.sym(base + 'pad.ttl');
     var padEle;
-    
+
     var div = document.getElementById('pad');
 
 
-    
+
     //  Build the DOM
-    
+
     var structure = div.appendChild(dom.createElement('table')); // @@ make responsive style
     structure.setAttribute('style', 'background-color: white; min-width: 94%; margin-right:3% margin-left: 3%; min-height: 13em;');
-    
+
     var naviLoginoutTR = structure.appendChild(dom.createElement('tr'));
     var naviLoginout1 = naviLoginoutTR.appendChild(dom.createElement('td'));
     var naviLoginout2 = naviLoginoutTR.appendChild(dom.createElement('td'));
     var naviLoginout3 = naviLoginoutTR.appendChild(dom.createElement('td'));
-    
+
     var logInOutButton = null;
 
     var naviTop = structure.appendChild(dom.createElement('tr')); // stuff
@@ -551,23 +516,23 @@ document.addEventListener('DOMContentLoaded', function() {
     var naviMiddle1 = naviMiddle.appendChild(dom.createElement('td'));
     var naviMiddle2 = naviMiddle.appendChild(dom.createElement('td'));
     var naviMiddle3 = naviMiddle.appendChild(dom.createElement('td'));
-    
+
     var naviStatus = structure.appendChild(dom.createElement('tr')); // status etc
-    var statusArea = naviStatus.appendChild(dom.createElement('div')); 
-    
+    var statusArea = naviStatus.appendChild(dom.createElement('div'));
+
     var naviSpawn = structure.appendChild(dom.createElement('tr')); // create new
     var spawnArea = naviSpawn.appendChild(dom.createElement('div'));
-    
-    
+
+
     var naviMenu = structure.appendChild(dom.createElement('tr'));
     naviMenu.setAttribute('class', 'naviMenu');
 //    naviMenu.setAttribute('style', 'margin-top: 3em;');
     var naviLeft = naviMenu.appendChild(dom.createElement('td'));
     var naviCenter = naviMenu.appendChild(dom.createElement('td'));
     var naviRight = naviMenu.appendChild(dom.createElement('td'));
-    
+
     var options = { statusArea: statusArea, timingArea: naviMiddle1 }
-    
+
     if (base.indexOf('github.io') >= 0 ) {// @@ More generically looking for read-only
         showBootstrap(subject, spawnArea, 'pad');
     } else {
@@ -575,5 +540,3 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
 });
-
-
