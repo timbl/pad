@@ -32,6 +32,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     var webOperation = function(method, uri, options, callback) {
         var xhr = $rdf.Util.XMLHTTPFactory();
+        xhr.original = $rdf.sym(uri)
         xhr.onreadystatechange = function (){
             if (xhr.readyState == 4){
                 var ok = (!xhr.status || (xhr.status >= 200 && xhr.status < 300));
@@ -257,7 +258,7 @@ document.addEventListener('DOMContentLoaded', function() {
                             complainIfBad(ok, "FAILED to copy "+ base + item.local +' : ' + message);
                             console.log("FAILED to copy "+ base + item.local +' : ' + message);
                         } else {
-                            xhr.resource = kb.sym(newURI);
+                            xhr.resource = xhr.original = kb.sym(newURI);
                             kb.fetcher.parseLinkHeader(xhr, kb.bnode()); // Dont save the whole headers, just the links
 
 			    var setThatACL = function() {
