@@ -17,7 +17,7 @@ document.addEventListener('DOMContentLoaded', function() {
     var ns = tabulator.ns;
     var dom = document;
     var me;
-    var updater = new $rdf.sparqlUpdate(kb);
+    var updater = kb.updater;
     var waitingForLogin = false;
 
     var ICAL = $rdf.Namespace('http://www.w3.org/2002/12/cal/ical#');
@@ -927,7 +927,7 @@ document.addEventListener('DOMContentLoaded', function() {
                             showResults(false);
                         } else {
                             complainIfBad(ok, "FAILED to create results file at: "+ padDoc.uri +' : ' + message);
-                            console.log("FAILED to craete results file at: "+ padDoc.uri +' : ' + message);
+                            console.log("FAILED to create results file at: "+ padDoc.uri +' : ' + message);
                         };
                     });
                 } else { // Other error, not 404 -- do not try to overwite the file
